@@ -6,7 +6,7 @@ import { HanaDB, HanaDBArgs } from "../../vectorstores/hanavector.js";
 import {
   FILTERING_DOCUMENTS,
   FILTERING_TEST_CASES,
-} from "./hanavector.fixtures.js";
+} from "./fixtures/hanavector.fixtures.js";
 import { HanaTestUtils } from "./hanavector.test.utils.js";
 import {
   DOCUMENTS,

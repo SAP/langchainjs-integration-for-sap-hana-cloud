@@ -29,10 +29,34 @@ export function executeQuery(client: Connection, query: string): Promise<any> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     client.exec(query, (err: Error, result: any) => {
       if (err) {
-        console.error("Execute query error", err);
         reject(err);
       } else {
         resolve(result);
+      }
+    });
+  });
+}
+
+export async function executeSparqlQuery(
+  client: Connection,
+  query: string,
+  requestHeaders: string
+): Promise<string> {
+  const sparqlQuery = `CALL SYS.SPARQL_EXECUTE(?, ?, ?, ?)`;
+  const stmt = await prepareQuery(client, sparqlQuery);
+  
+  return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params : HanaParameterList =  {
+      REQUEST : query,
+      PARAMETER : requestHeaders
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    stmt?.exec(params, (err: Error) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(stmt.getParameterValue(2));
       }
     });
   });
@@ -46,6 +70,7 @@ export function prepareQuery(
   return new Promise((resolve, reject) => {
     client.prepare(query, (err: Error, statement) => {
       if (err) {
+        console.error("Prepare query error", err);
         reject(err);
       } else {
         resolve(statement);
@@ -69,28 +94,6 @@ export function executeStatement(
         resolve(res);
       }
     });
-  });
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function executeProcedureStatement(
-  statement: Statement | undefined,
-  params: HanaParameterList
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<any> {
-  return new Promise((resolve, reject) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    statement?.exec(
-      params,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (err: Error, _: any, outParams: HanaParameterList) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(outParams);
-        }
-      }
-    );
   });
 }
 

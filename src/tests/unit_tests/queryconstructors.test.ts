@@ -1,7 +1,7 @@
 import { jest } from "@jest/globals";
 import { HanaDB } from "../../vectorstores/hanavector.js";
 import { CreateWhereClause } from "../../vectorstores/whereclausebuilder.js";
-import { FILTERING_TEST_CASES } from "../integration_tests/hanavector.fixtures.js";
+import { FILTERING_TEST_CASES } from "../integration_tests/fixtures/hanavector.fixtures.js";
 
 const dummyHanaDB = {
   getMetadataColumn: jest.fn().mockReturnValue("VEC_META"),

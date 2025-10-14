@@ -1,16 +1,12 @@
-import { DatasetCore } from "@rdfjs/types";
 import { Connection } from "@sap/hana-client";
+import { Parser as N3Parser,  Store as N3Store, Writer as N3Writer} from "n3";
 import { Parser } from "sparqljs";
-import { promises as fs, createReadStream, PathLike } from "fs";
-import { Readable } from "stream";
-import rdf from "rdf-ext";
-import { rdfParser } from "rdf-parse";
-import { executeProcedureStatement, prepareQuery } from "../hanautils.js";
-
+import { promises as fs, PathLike } from "fs";
+import { executeSparqlQuery } from "../hanautils.js";
 /**
  * Options for initializing HanaRdfGraph
  */
-interface HanaRdfGraphOptions {
+export interface HanaRdfGraphOptions {
   connection: Connection;
   graphUri?: string;
   ontologyQuery?: string;
@@ -59,7 +55,7 @@ interface HanaRdfGraphOptions {
 export class HanaRdfGraph {
   private connection: Connection;
 
-  private graphUri: string;
+  private fromClause: string ;
 
   private schema: string = "";
 
@@ -70,11 +66,14 @@ export class HanaRdfGraph {
    */
   constructor(options: HanaRdfGraphOptions) {
     this.connection = options.connection;
-    this.graphUri = options.graphUri ?? "DEFAULT";
+    if (!options.graphUri || options.graphUri?.toUpperCase() === "DEFAULT") {
+      this.fromClause = "FROM DEFAULT";
+    } else {
+      this.fromClause = `FROM <${options.graphUri}>`;
+    }
   }
 
   async initialize(options: HanaRdfGraphOptions) {
-    await this.checkConnectivity();
     await this.refreshSchema({
       ontologyQuery: options.ontologyQuery,
       ontologyUri: options.ontologyUri,
@@ -94,8 +93,6 @@ export class HanaRdfGraph {
   injectFromClause(query: string): string {
     if (/FROM/i.test(query)) return query;
 
-    const fromClause =
-      this.graphUri === "DEFAULT" ? "FROM DEFAULT" : `FROM <${this.graphUri}>`;
     const whereIndex = query.search(/\bWHERE\b/i);
 
     if (whereIndex === -1) {
@@ -104,7 +101,7 @@ export class HanaRdfGraph {
 
     return `
       ${query.slice(0, whereIndex)}
-      ${fromClause}
+      ${this.fromClause}
       ${query.slice(whereIndex)}
     `;
   }
@@ -124,33 +121,8 @@ export class HanaRdfGraph {
   ): Promise<string> {
     const finalQuery = injectFrom ? this.injectFromClause(query) : query;
     const headers = `Accept: ${contentType}\r\nContent-Type: application/sparql-query`;
-    const sql = "CALL SYS.SPARQL_EXECUTE(?, ?, ?, ?)";
-    const stmt = await prepareQuery(this.connection, sql);
-
-    const result = await executeProcedureStatement(stmt, [
-      finalQuery,
-      headers,
-      "",
-      null,
-    ]);
-
-    return result[2];
-  }
-
-  /**
-   * Ensures that the specified graph exists in HANA.
-   *
-   * @throws Error if the graph does not exist or connectivity fails.
-   */
-  private async checkConnectivity() {
-    const fromClause =
-      this.graphUri !== "DEFAULT" ? `FROM <${this.graphUri}>` : "";
-    const askQuery = `ASK ${fromClause} { ?s ?p ?o }`;
-
-    const response = await this.query(askQuery, false);
-    if (response.trim() === "false") {
-      throw new Error(`No named graph found for URI: '${this.graphUri}'`);
-    }
+    const result = await executeSparqlQuery(this.connection, finalQuery, headers);
+    return result;
   }
 
   /**
@@ -161,20 +133,15 @@ export class HanaRdfGraph {
    */
   private async loadOntologySchemaGraphFromQuery(
     ontologyQuery: string
-  ): Promise<DatasetCore> {
+  ): Promise<N3Store> {
     HanaRdfGraph.validateConstructQuery(ontologyQuery);
     const response = await this.query(ontologyQuery, false, "");
-    const stringStream = new Readable({
-      read() {
-        this.push(response); // push the string data
-        this.push(null); // signal the end of the stream
-      },
-    });
-    const graph = rdf.dataset();
 
-    const quadStream = rdfParser.parse(stringStream, {
-      contentType: "text/turtle",
+    const graph = new N3Store();
+    const n3Parser = new N3Parser({
+      format: "text/turtle",
     });
+    const quadStream = n3Parser.parse(response);
     for await (const quad of quadStream) {
       graph.add(quad);
     }
@@ -192,9 +159,11 @@ export class HanaRdfGraph {
   private async loadOntologySchemaFromFile(
     localFile: PathLike,
     fileFormat: string = "text/turtle"
-  ): Promise<DatasetCore> {
+  ): Promise<N3Store> {
+
+    let fileData: string;
     try {
-      await fs.readFile(localFile, "utf8");
+      fileData = await fs.readFile(localFile, "utf8");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err.code === "ENOENT") {
@@ -206,16 +175,15 @@ export class HanaRdfGraph {
       }
     }
 
-    const fileStream = createReadStream(localFile);
+    const ontologyGraph = new N3Store();
+    const parser = new N3Parser({ format: fileFormat });
 
-    const dataset = rdf.dataset();
-
-    const quadStream = rdfParser.parse(fileStream, { contentType: fileFormat });
+    const quadStream = parser.parse(fileData);
     for await (const quad of quadStream) {
-      dataset.add(quad);
+      ontologyGraph.add(quad);
     }
 
-    return dataset;
+    return ontologyGraph;
   }
 
   /**
@@ -239,9 +207,7 @@ export class HanaRdfGraph {
 
     if (schemaSourceCount === 0 && options.autoExtractOntology) {
       // eslint-disable-next-line no-param-reassign
-      options.ontologyQuery = HanaRdfGraph.getGenericOntologyQuery(
-        this.graphUri
-      );
+      options.ontologyQuery = this.getGenericOntologyQuery();
       schemaSourceCount = 1;
     }
 
@@ -255,7 +221,7 @@ export class HanaRdfGraph {
       throw new Error("No ontology/schema sources provided.");
     }
 
-    let graph: DatasetCore;
+    let graph: N3Store;
 
     if (options.ontologyLocalFile) {
       graph = await this.loadOntologySchemaFromFile(
@@ -273,8 +239,20 @@ export class HanaRdfGraph {
       );
     }
 
-    const serialized = await rdf.serializeTurtle(graph);
-    this.schema = serialized.toString();
+    const writer = new N3Writer({ format: "text/turtle", prefixes: {
+      owl: "http://www.w3.org/2002/07/owl#",
+      rdfs: "http://www.w3.org/2000/01/rdf-schema#",
+      xsd: "http://www.w3.org/2001/XMLSchema#",
+    }});
+    
+    for (const quad of graph) {
+      console.log(quad)
+      writer.addQuad(quad);
+    }
+    writer.end((error, result) => {
+      if (error) { throw new Error(`Error serializing RDF graph: ${error.message}`); }
+      this.schema = result;
+    });
   }
 
   /**
@@ -284,7 +262,12 @@ export class HanaRdfGraph {
    */
   private static validateConstructQuery(query: string) {
     const parser = new Parser();
-    const parsedQuery = parser.parse(query);
+    // We are using the parser from sparqljs to parse the query.
+    // HANA deviates from the standard SPARQL specification where FROM DEFAULT is a valid clause.
+    // To handle this, we remove 'FROM DEFAULT' before parsing.
+    // In the standard specification, when no FROM clause is given, the default graph is used.
+    const queryWithoutFromDefault = query.replace(/FROM\s+DEFAULT/gi, "");
+    const parsedQuery = parser.parse(queryWithoutFromDefault);
     if (
       !(parsedQuery.type === "query" && parsedQuery.queryType === "CONSTRUCT")
     ) {
@@ -299,7 +282,7 @@ export class HanaRdfGraph {
    * @param graphUri Named graph URI to extract schema from.
    * @returns SPARQL CONSTRUCT query string.
    */
-  static getGenericOntologyQuery(graphUri: string): string {
+  private getGenericOntologyQuery(): string {
     const ontologyQuery = `
     PREFIX owl: <http://www.w3.org/2002/07/owl#>
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -313,7 +296,7 @@ export class HanaRdfGraph {
       ?rel rdfs:domain ?domain . 
       ?rel rdfs:range ?range .
     }
-    FROM <${graphUri}>
+    ${this.fromClause}
     WHERE { 
       { 
         SELECT DISTINCT ?domain ?rel ?relLabel ?propertyType ?range
