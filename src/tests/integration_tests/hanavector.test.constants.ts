@@ -13,3 +13,4 @@ export const DOCUMENTS = TEXTS.map(
     new Document({ pageContent: text, metadata: METADATAS[index] })
 );
 export const TABLE_NAME = "TEST_TABLE";
+export const TABLE_NAME_CUSTOM_DB = "CUSTOM_TEST_TABLE";

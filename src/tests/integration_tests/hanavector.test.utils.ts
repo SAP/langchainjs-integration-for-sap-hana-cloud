@@ -60,7 +60,7 @@ export class HanaTestUtils {
 
     const result = await executeQuery(client, sql);
     const uniqueId = result[0].GENERATED_ID;
-    return `${prefix}__${uniqueId}`;
+    return `${prefix}_${uniqueId}`;
   }
 
   static async createAndSetSchema(client: Connection, schemaName: string) {
@@ -69,6 +69,6 @@ export class HanaTestUtils {
   }
 
   static async dropTable(client: Connection, tableName: string) {
-    await executeQuery(client, `DROP TABLE ${tableName}`);
+    await executeQuery(client, `DROP TABLE "${tableName}"`);
   }
 }

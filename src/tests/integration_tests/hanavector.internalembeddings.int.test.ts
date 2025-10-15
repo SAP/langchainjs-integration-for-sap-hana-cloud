@@ -92,152 +92,132 @@ afterAll(async () => {
   config.client.disconnect();
 });
 
-let vectorDB: HanaDB;
-
-beforeEach(async () => {
+async function vectorDBSetup(vectorColumnType: string) {
   const args: HanaDBArgs = {
     connection: config.client,
     tableName: TABLE_NAME,
+    vectorColumnType,
   };
-  vectorDB = new HanaDB(config.embeddings, args);
-  expect(vectorDB).toBeDefined();
+  const vectorDB = new HanaDB(config.embeddings, args);
   await vectorDB.initialize();
-});
+  expect(vectorDB).toBeDefined();
+  return vectorDB;
+}
 
-afterEach(async () => {
+async function vectorDBTeardown() {
   await HanaTestUtils.dropTable(config.client, TABLE_NAME);
-});
+}
 
-test("hanavector add documents", async () => {
-  await vectorDB.addDocuments(DOCUMENTS);
-  const countResult = await executeQuery(
-    config.client,
-    `SELECT COUNT(*) AS COUNT FROM ${TABLE_NAME}`
-  );
-  expect(countResult[0]?.COUNT ?? -1).toBe(DOCUMENTS.length);
-});
+describe.each(["REAL_VECTOR", "HALF_VECTOR"])(
+  "tests with all vector column types",
+  (vectorColumnType) => {
 
-describe("similarity search tests", () => {
-  test("test similarity search simple", async () => {
-    await vectorDB.addDocuments(DOCUMENTS);
-
-    const results = await vectorDB.similaritySearch(TEXTS[0], 1);
-
-    expect(results[0].pageContent).toBe(TEXTS[0]);
-
-    expect(results[0].pageContent).not.toBe(TEXTS[1]);
-  });
-
-  test("test similarity search simple half vector", async () => {
-    const tableName = "TEST_TABLE_INT_EMB_SIMILARITY_SEARCH_HALF_VECTOR";
-    const vectorColumnType = "HALF_VECTOR";
-    const args: HanaDBArgs = {
-      connection: config.client,
-      tableName,
-      vectorColumnType,
-    };
-
-    vectorDB = new HanaDB(config.embeddings, args);
-    await vectorDB.initialize();
-
-    await vectorDB.addDocuments(DOCUMENTS);
-
-    const results = await vectorDB.similaritySearch(TEXTS[0], 1);
-
-    expect(results[0].pageContent).toBe(TEXTS[0]);
-
-    expect(results[0].pageContent).not.toBe(TEXTS[1]);
-  });
-
-  test("similarity search with metadata filter (numeric)", async () => {
-    await vectorDB.addDocuments(DOCUMENTS);
-
-    let results = await vectorDB.similaritySearch(TEXTS[0], 3, { start: 100 });
-
-    expect(results).toHaveLength(1);
-    expect(results[0].pageContent).toBe(TEXTS[1]);
-    expect(results[0].metadata.start).toBe(METADATAS[1].start);
-    expect(results[0].metadata.end).toBe(METADATAS[1].end);
-
-    results = await vectorDB.similaritySearch(TEXTS[0], 3, {
-      start: 100,
-      end: 150,
-    });
-    expect(results).toHaveLength(0);
-
-    results = await vectorDB.similaritySearch(TEXTS[0], 3, {
-      start: 100,
-      end: 200,
-    });
-
-    expect(results).toHaveLength(1);
-    expect(results[0].pageContent).toBe(TEXTS[1]);
-    expect(results[0].metadata.start).toBe(METADATAS[1].start);
-    expect(results[0].metadata.end).toBe(METADATAS[1].end);
-  });
-
-  describe("similarity search invalid", () => {
-    const invalidKs = [0, -4];
-
-    test.each(invalidKs)("throws ValueError for k = %i", async (k) => {
-      await expect(vectorDB.similaritySearch(TEXTS[0], k)).rejects.toThrow(
-        /must be an integer greater than 0/
+    test("hanavector add documents", async () => {
+      const vectorDB = await vectorDBSetup(vectorColumnType);
+      await vectorDB.addDocuments(DOCUMENTS);
+      const countResult = await executeQuery(
+        config.client,
+        `SELECT COUNT(*) AS COUNT FROM ${TABLE_NAME}`
       );
-    });
-  });
-});
+      expect(countResult[0]?.COUNT ?? -1).toBe(DOCUMENTS.length);
 
-describe("max marginal relevance search tests", () => {
-  test("max marginal relevance search simple", async () => {
-    await vectorDB.addDocuments(DOCUMENTS);
-
-    const results = await vectorDB.maxMarginalRelevanceSearch(TEXTS[0], {
-      k: 2,
-      fetchK: 20,
+      await vectorDBTeardown();
     });
 
-    expect(results).toHaveLength(2);
-    expect(results[0].pageContent).toBe(TEXTS[0]);
-    expect(results[1].pageContent).not.toBe(TEXTS[0]);
-  });
+    describe("similarity search tests", () => {
+      test("test similarity search simple", async () => {
+        const vectorDB = await vectorDBSetup(vectorColumnType);
+        await vectorDB.addDocuments(DOCUMENTS);
 
-  test("max marginal relevance search simple half vector", async () => {
-    const tableName = "TEST_TABLE_MMR_HALF_VECTOR";
-    const vectorColumnType = "HALF_VECTOR";
-    const args: HanaDBArgs = {
-      connection: config.client,
-      tableName,
-      vectorColumnType,
-    };
-    vectorDB = new HanaDB(config.embeddings, args);
-    await vectorDB.initialize();
+        const results = await vectorDB.similaritySearch(TEXTS[0], 1);
 
-    await vectorDB.addDocuments(DOCUMENTS);
+        expect(results[0].pageContent).toBe(TEXTS[0]);
 
-    const results = await vectorDB.maxMarginalRelevanceSearch(TEXTS[0], {
-      k: 2,
-      fetchK: 20,
+        expect(results[0].pageContent).not.toBe(TEXTS[1]);
+
+        await vectorDBTeardown();
+      });
+
+      test("similarity search with metadata filter (numeric)", async () => {
+        const vectorDB = await vectorDBSetup(vectorColumnType);
+        await vectorDB.addDocuments(DOCUMENTS);
+
+        let results = await vectorDB.similaritySearch(TEXTS[0], 3, {
+          start: 100,
+        });
+
+        expect(results).toHaveLength(1);
+        expect(results[0].pageContent).toBe(TEXTS[1]);
+        expect(results[0].metadata.start).toBe(METADATAS[1].start);
+        expect(results[0].metadata.end).toBe(METADATAS[1].end);
+
+        results = await vectorDB.similaritySearch(TEXTS[0], 3, {
+          start: 100,
+          end: 150,
+        });
+        expect(results).toHaveLength(0);
+
+        results = await vectorDB.similaritySearch(TEXTS[0], 3, {
+          start: 100,
+          end: 200,
+        });
+
+        expect(results).toHaveLength(1);
+        expect(results[0].pageContent).toBe(TEXTS[1]);
+        expect(results[0].metadata.start).toBe(METADATAS[1].start);
+        expect(results[0].metadata.end).toBe(METADATAS[1].end);
+
+        await vectorDBTeardown();
+      });
+
+      describe("similarity search invalid", () => {
+        const invalidKs = [0, -4];
+
+        test.each(invalidKs)("throws ValueError for k = %i", async (k) => {
+          const vectorDB = await vectorDBSetup(vectorColumnType);
+          await expect(vectorDB.similaritySearch(TEXTS[0], k)).rejects.toThrow(
+            /must be an integer greater than 0/
+          );
+          await vectorDBTeardown();
+        });
+      });
     });
 
-    expect(results).toHaveLength(2);
-    expect(results[0].pageContent).toBe(TEXTS[0]);
-    expect(results[1].pageContent).not.toBe(TEXTS[0]);
-  });
+    describe("max marginal relevance search tests", () => {
+      test("max marginal relevance search simple", async () => {
+        const vectorDB = await vectorDBSetup(vectorColumnType);
+        await vectorDB.addDocuments(DOCUMENTS);
 
-  describe("max marginal relevance search invalid", () => {
-    const invalidCases: Array<[number, number, string]> = [
-      [0, 20, "must be an integer greater than 0"],
-      [-4, 20, "must be an integer greater than 0"],
-      [2, 0, "greater than or equal to 'k'"],
-    ];
+        const results = await vectorDB.maxMarginalRelevanceSearch(TEXTS[0], {
+          k: 2,
+          fetchK: 20,
+        });
 
-    test.each(invalidCases)(
-      "throws for invalid (k=%i, fetchK=%i)",
-      async (k, fetchK, expectedMessage) => {
-        await expect(
-          vectorDB.maxMarginalRelevanceSearch(TEXTS[0], { k, fetchK })
-        ).rejects.toThrow(expectedMessage);
-      }
-    );
-  });
-});
+        expect(results).toHaveLength(2);
+        expect(results[0].pageContent).toBe(TEXTS[0]);
+        expect(results[1].pageContent).not.toBe(TEXTS[0]);
+        await vectorDBTeardown();
+      });
+
+      describe("max marginal relevance search invalid", () => {
+        const invalidCases: Array<[number, number, string]> = [
+          [0, 20, "must be an integer greater than 0"],
+          [-4, 20, "must be an integer greater than 0"],
+          [2, 0, "greater than or equal to 'k'"],
+        ];
+
+        test.each(invalidCases)(
+          "throws for invalid (k=%i, fetchK=%i)",
+          async (k, fetchK, expectedMessage) => {
+            const vectorDB = await vectorDBSetup(vectorColumnType);
+            await expect(
+              vectorDB.maxMarginalRelevanceSearch(TEXTS[0], { k, fetchK })
+            ).rejects.toThrow(expectedMessage);
+
+            await vectorDBTeardown();
+          }
+        );
+      });
+    });
+  }
+);
