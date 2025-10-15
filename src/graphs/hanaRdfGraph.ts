@@ -1,5 +1,5 @@
 import { Connection } from "@sap/hana-client";
-import { Parser as N3Parser,  Store as N3Store, Writer as N3Writer} from "n3";
+import { Parser as N3Parser,  Store as N3Store} from "n3";
 import { Parser } from "sparqljs";
 import { promises as fs, PathLike } from "fs";
 import { executeSparqlQuery } from "../hanautils.js";
@@ -57,7 +57,7 @@ export class HanaRdfGraph {
 
   private fromClause: string ;
 
-  private schema: string = "";
+  private schema: N3Store;
 
   /**
    * Creates a new HanaRdfGraph instance.
@@ -238,21 +238,8 @@ export class HanaRdfGraph {
         options.ontologyQuery!
       );
     }
-
-    const writer = new N3Writer({ format: "text/turtle", prefixes: {
-      owl: "http://www.w3.org/2002/07/owl#",
-      rdfs: "http://www.w3.org/2000/01/rdf-schema#",
-      xsd: "http://www.w3.org/2001/XMLSchema#",
-    }});
     
-    for (const quad of graph) {
-      console.log(quad)
-      writer.addQuad(quad);
-    }
-    writer.end((error, result) => {
-      if (error) { throw new Error(`Error serializing RDF graph: ${error.message}`); }
-      this.schema = result;
-    });
+    this.schema = graph;
   }
 
   /**
@@ -330,7 +317,7 @@ export class HanaRdfGraph {
    *
    * @returns RDF schema as a Turtle string.
    */
-  getSchema(): string {
+  getSchema(): N3Store {
     return this.schema;
   }
 }
