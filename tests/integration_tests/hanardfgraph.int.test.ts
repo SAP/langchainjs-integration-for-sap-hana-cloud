@@ -9,8 +9,8 @@ import { HanaTestUtils } from "./hanavector.test.utils.js";
 import {
   HanaRdfGraph,
   HanaRdfGraphOptions,
-} from "../../graphs/hanaRdfGraph.js";
-import { executeSparqlQuery } from "../../hanautils.js";
+} from "../../src/graphs/hanaRdfGraph.js";
+import { executeSparqlQuery } from "../../src/hanautils.js";
 
 /* eslint-disable no-process-env */
 const connectionParams = {

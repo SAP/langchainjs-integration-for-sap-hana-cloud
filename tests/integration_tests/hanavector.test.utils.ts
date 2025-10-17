@@ -3,7 +3,7 @@ import {
   executeQuery,
   executeStatement,
   prepareQuery,
-} from "../../hanautils.js";
+} from "../../src/hanautils.js";
 
 export class HanaTestUtils {
   static async connectToHANA(client: Connection) {

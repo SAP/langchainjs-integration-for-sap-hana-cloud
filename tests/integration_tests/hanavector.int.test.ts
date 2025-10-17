@@ -2,7 +2,7 @@
 import hanaClient, { Connection } from "@sap/hana-client";
 // import hdbClient from "hdb";
 import { FakeEmbeddings } from "@langchain/core/utils/testing";
-import { HanaDB, HanaDBArgs } from "../../vectorstores/hanavector.js";
+import { HanaDB, HanaDBArgs } from "../../src/vectorstores/hanavector.js";
 import {
   FILTERING_DOCUMENTS,
   FILTERING_TEST_CASES,
@@ -19,7 +19,7 @@ import {
   executeQuery,
   executeStatement,
   prepareQuery,
-} from "../../hanautils.js";
+} from "../../src/hanautils.js";
 // Connection parameters
 const connectionParams = {
   host: process.env.HANA_DB_ADDRESS,

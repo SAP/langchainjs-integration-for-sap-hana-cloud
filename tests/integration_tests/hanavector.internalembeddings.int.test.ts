@@ -2,13 +2,13 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import hanaClient, { Connection } from "@sap/hana-client";
 import { HanaTestUtils } from "./hanavector.test.utils.js";
-import { HanaInternalEmbeddings } from "../../internalEmbeddings.js";
+import { HanaInternalEmbeddings } from "../../src/internalEmbeddings.js";
 import {
   executeQuery,
   executeStatement,
   prepareQuery,
-} from "../../hanautils.js";
-import { HanaDB, HanaDBArgs } from "../../vectorstores/hanavector.js";
+} from "../../src/hanautils.js";
+import { HanaDB, HanaDBArgs } from "../../src/vectorstores/hanavector.js";
 import {
   DOCUMENTS,
   METADATAS,
