@@ -210,7 +210,7 @@ export class HanaSparqlQAChain extends BaseChain {
 
     // Log the generated SPARQL
     await runManager?.handleText("Generated SPARQL:\n");
-    await runManager?.handleText(`${generatedSparql} green\n`);
+    await runManager?.handleText(`${generatedSparql}\n`);
 
     // Extract the SPARQL code from the generated text and inject the from clause
     generatedSparql = HanaSparqlQAChain.extractSparql(generatedSparql);
@@ -218,14 +218,14 @@ export class HanaSparqlQAChain extends BaseChain {
     generatedSparql = this.ensureCommonPrefixes(generatedSparql);
 
     await runManager?.handleText("Final SPARQL:\n");
-    await runManager?.handleText(`${generatedSparql} yellow\n`);
+    await runManager?.handleText(`${generatedSparql}\n`);
 
     // Execute the generated SPARQL query against the graph
     const context = await this.graph.query(generatedSparql, false);
 
     // Log the full context (SPARQL results)
     await runManager?.handleText("Full Context:\n");
-    await runManager?.handleText(`${context} green\n`);
+    await runManager?.handleText(`${context}\n`);
 
     // Pass the question and query results into the QA chain
     const qaResult = await this.qaChain.invoke(
