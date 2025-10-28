@@ -1,5 +1,5 @@
 import { Connection } from "@sap/hana-client";
-import { Parser as N3Parser,  Store as N3Store} from "n3";
+import { Parser as N3Parser, Store as N3Store } from "n3";
 import { Parser } from "sparqljs";
 import { promises as fs, PathLike } from "fs";
 import { executeSparqlQuery } from "../hanautils.js";
@@ -55,7 +55,7 @@ export interface HanaRdfGraphOptions {
 export class HanaRdfGraph {
   private connection: Connection;
 
-  private fromClause: string ;
+  private fromClause: string;
 
   private schema: N3Store;
 
@@ -121,7 +121,11 @@ export class HanaRdfGraph {
   ): Promise<string> {
     const finalQuery = injectFrom ? this.injectFromClause(query) : query;
     const headers = `Accept: ${contentType}\r\nContent-Type: application/sparql-query`;
-    const result = await executeSparqlQuery(this.connection, finalQuery, headers);
+    const result = await executeSparqlQuery(
+      this.connection,
+      finalQuery,
+      headers
+    );
     return result;
   }
 
@@ -160,7 +164,6 @@ export class HanaRdfGraph {
     localFile: PathLike,
     fileFormat: string = "text/turtle"
   ): Promise<N3Store> {
-
     let fileData: string;
     try {
       fileData = await fs.readFile(localFile, "utf8");
@@ -238,7 +241,7 @@ export class HanaRdfGraph {
         options.ontologyQuery!
       );
     }
-    
+
     this.schema = graph;
   }
 
@@ -253,7 +256,10 @@ export class HanaRdfGraph {
     // HANA deviates from the standard SPARQL specification where FROM DEFAULT is a valid clause.
     // Also, HANA allows the graphUris to be simple names instead of full URIs.
     // To handle this, we replace such graphUris with a dummy graphUri.
-    const queryWithDummyUri = query.replace(/FROM\s+(?:NAMED\s+)?(?:DEFAULT|<([^>:]+)>)/gi, 'FROM $1<http://example.org/dummy_graph>');
+    const queryWithDummyUri = query.replace(
+      /FROM\s+(?:NAMED\s+)?(?:DEFAULT|<([^>:]+)>)/gi,
+      "FROM $1<http://example.org/dummy_graph>"
+    );
     const parsedQuery = parser.parse(queryWithDummyUri);
     if (
       !(parsedQuery.type === "query" && parsedQuery.queryType === "CONSTRUCT")

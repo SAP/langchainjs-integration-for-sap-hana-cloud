@@ -44,14 +44,12 @@ export async function executeSparqlQuery(
 ): Promise<string> {
   const sparqlQuery = `CALL SYS.SPARQL_EXECUTE(?, ?, ?, ?)`;
   const stmt = await prepareQuery(client, sparqlQuery);
-  
+
   return new Promise((resolve, reject) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const params : HanaParameterList =  {
-      REQUEST : query,
-      PARAMETER : requestHeaders
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: HanaParameterList = {
+      REQUEST: query,
+      PARAMETER: requestHeaders,
+    };
     stmt?.exec(params, (err: Error) => {
       if (err) {
         reject(err);
@@ -62,7 +60,7 @@ export async function executeSparqlQuery(
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export function prepareQuery(
   client: Connection,
   query: string
@@ -79,7 +77,7 @@ export function prepareQuery(
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export function executeStatement(
   statement: Statement | undefined,
   params: HanaParameterList
