@@ -5,11 +5,8 @@ import { Parser as N3Parser, Store as N3Store } from "n3";
 import { isomorphic } from "rdf-isomorphic";
 import hanaClient, { Connection } from "@sap/hana-client";
 import { fileURLToPath } from "url";
-import { HanaTestUtils } from "./hanavector.test.utils.js";
-import {
-  HanaRdfGraph,
-  HanaRdfGraphOptions,
-} from "../../src/graphs/hanaRdfGraph.js";
+import { HanaTestUtils } from "./hana.test.utils.js";
+import { HanaRdfGraph, HanaRdfGraphOptions } from "../../src/index.js";
 import { executeSparqlQuery } from "../../src/hanautils.js";
 
 /* eslint-disable no-process-env */

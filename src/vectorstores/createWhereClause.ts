@@ -1,5 +1,5 @@
 import { Comparator as BaseComparator } from "@langchain/core/structured_query";
-import { HanaDB } from "./hanavector.js";
+import { HanaDB } from "./hanaDb.js";
 
 // Base value types that can be used in comparisons
 export type ComparisonRValue =

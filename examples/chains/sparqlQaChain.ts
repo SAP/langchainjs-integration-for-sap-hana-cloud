@@ -1,7 +1,6 @@
 import { ChatOpenAI } from "@langchain/openai";
-import { HanaSparqlQAChain } from "@sap/hana-langchain/chains";
 import hanaClient from "@sap/hana-client";
-import { HanaRdfGraph } from "@sap/hana-langchain/graphs";
+import { HanaRdfGraph, HanaRdfGraphOptions, HanaSparqlQAChain, HanaSparqlQAChainOptions } from "@sap/hana-langchain";
 // or import another node.js driver
 // import hanaClient from "hdb"
 
@@ -27,6 +26,13 @@ await new Promise<void>((resolve, reject) => {
   });
 });
 
+
+const graphOptions : HanaRdfGraphOptions = {
+    connection: client,
+    graphUri,
+    autoExtractOntology : true,
+}
+
 // create a Graph instance from a source URI
 const graph = new HanaRdfGraph({
     connection: client,
@@ -35,15 +41,17 @@ const graph = new HanaRdfGraph({
 });
 
 // need to initialize once an instance is created.
-await graph.initialize();
+await graph.initialize(graphOptions);
 
 const llm = new ChatOpenAI({ model: "gpt-4o-mini" });
 
-const chain = HanaSparqlQAChain.fromLLM({
+const chainOptions : HanaSparqlQAChainOptions = {
     llm,
     allowDangerousRequests: true,
     graph
-});
+}
+
+const chain = HanaSparqlQAChain.fromLLM(chainOptions);
 
 const query = "YOUR QUESTION HERE";
 

@@ -1,5 +1,5 @@
 import hanaClient from "@sap/hana-client";
-import { HanaRdfGraph } from "@sap/hana-langchain/graphs";
+import { HanaRdfGraph } from "@sap/hana-langchain";
 // or import another node.js driver
 // import hanaClient from "hdb"
 
@@ -25,15 +25,17 @@ await new Promise<void>((resolve, reject) => {
   });
 });
 
+const graphOptions = {
+  connection: client,
+  graphUri: 'http://example.com/graph',
+  ontologyUri: 'http://example.com/ontology'
+};
+
 // create a Graph instance from a source URI
-const graph = new HanaRdfGraph({
-    connection: client,
-    graphUri: 'http://example.com/graph',
-    ontologyUri: 'http://example.com/ontology'
-});
+const graph = new HanaRdfGraph(graphOptions);
 
 // need to initialize once an instance is created.
-await graph.initialize();
+await graph.initialize(graphOptions);
 
 // Run a query on the graph
 const results = await graph.query('SELECT ?s ?p ?o WHERE { ?s ?p ?o }');

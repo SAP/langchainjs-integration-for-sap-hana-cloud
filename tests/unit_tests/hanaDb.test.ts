@@ -1,5 +1,5 @@
 import { expect } from "@jest/globals";
-import { HanaDB } from "../../src/vectorstores/hanavector.js";
+import { HanaDB } from "../../src/index.js";
 import { validateK, validateKAndFetchK } from "../../src/hanautils.js";
 
 describe("Sanity check tests", () => {

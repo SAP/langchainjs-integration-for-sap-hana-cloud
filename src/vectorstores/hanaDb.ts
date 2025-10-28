@@ -6,7 +6,7 @@ import {
 import { Document } from "@langchain/core/documents";
 import { maximalMarginalRelevance } from "@langchain/core/utils/math";
 import { Connection, HanaParameterType } from "@sap/hana-client";
-import { HanaInternalEmbeddings } from "../internalEmbeddings.js";
+import { HanaInternalEmbeddings } from "../embeddings/hanaInternalEmbeddings.js";
 import {
   DistanceStrategy,
   executeBatchStatement,
@@ -21,7 +21,7 @@ import {
   CreateWhereClause,
   Filter,
   LOGICAL_OPERATORS_TO_SQL,
-} from "./whereclausebuilder.js";
+} from "./createWhereClause.js";
 
 const HANA_DISTANCE_FUNCTION: Record<DistanceStrategy, [string, string]> = {
   COSINE: ["COSINE_SIMILARITY", "DESC"],

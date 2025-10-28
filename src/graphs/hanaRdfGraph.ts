@@ -36,13 +36,13 @@ export interface HanaRdfGraphOptions {
  *   uid: 'your-username',
  *   pwd: 'your-password',
  * });
- *
- * const graph = new HanaRdfGraph({
+ * const graphOptions: HanaRdfGraphOptions = {
  *   connection: conn,
  *   graphUri: 'http://example.com/graph',
  *   ontologyUri: 'http://example.com/ontology'
- * });
- * await graph.initialize();
+ * };
+ * const graph = new HanaRdfGraph(graphOptions);
+ * await graph.initialize(graphOptions);
  *
  * const results = await graph.query('SELECT ?s ?p ?o WHERE { ?s ?p ?o }');
  * console.log(results);
@@ -251,10 +251,10 @@ export class HanaRdfGraph {
     const parser = new Parser();
     // We are using the parser from sparqljs to parse the query.
     // HANA deviates from the standard SPARQL specification where FROM DEFAULT is a valid clause.
-    // To handle this, we remove 'FROM DEFAULT' before parsing.
-    // In the standard specification, when no FROM clause is given, the default graph is used.
-    const queryWithoutFromDefault = query.replace(/FROM\s+DEFAULT/gi, "");
-    const parsedQuery = parser.parse(queryWithoutFromDefault);
+    // Also, HANA allows the graphUris to be simple names instead of full URIs.
+    // To handle this, we replace such graphUris with a dummy graphUri.
+    const queryWithDummyUri = query.replace(/FROM\s+(?:NAMED\s+)?(?:DEFAULT|<([^>:]+)>)/gi, 'FROM $1<http://example.org/dummy_graph>');
+    const parsedQuery = parser.parse(queryWithDummyUri);
     if (
       !(parsedQuery.type === "query" && parsedQuery.queryType === "CONSTRUCT")
     ) {

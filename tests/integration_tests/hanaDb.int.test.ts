@@ -2,19 +2,19 @@
 import hanaClient, { Connection } from "@sap/hana-client";
 // import hdbClient from "hdb";
 import { FakeEmbeddings } from "@langchain/core/utils/testing";
-import { HanaDB, HanaDBArgs } from "../../src/vectorstores/hanavector.js";
+import { HanaDB, HanaDBArgs } from "../../src/index.js";
 import {
   FILTERING_DOCUMENTS,
   FILTERING_TEST_CASES,
 } from "./fixtures/hanavector.fixtures.js";
-import { HanaTestUtils } from "./hanavector.test.utils.js";
+import { HanaTestUtils } from "./hana.test.utils.js";
 import {
   DOCUMENTS,
   METADATAS,
   TABLE_NAME,
   TABLE_NAME_CUSTOM_DB,
   TEXTS,
-} from "./hanavector.test.constants.js";
+} from "./hana.test.constants.js";
 import {
   executeQuery,
   executeStatement,

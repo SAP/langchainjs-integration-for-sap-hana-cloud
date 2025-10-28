@@ -1,5 +1,5 @@
 import { BasePromptTemplate } from "@langchain/core/prompts";
-import { LLM } from "@langchain/core/language_models/llms";
+import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { Runnable, RunnableSequence } from "@langchain/core/runnables";
 import { BaseChain, ChainInputs } from "langchain/chains";
 import { CallbackManagerForChainRun } from "@langchain/core/callbacks/manager";
@@ -11,10 +11,10 @@ import {
   SPARQL_QA_PROMPT,
 } from "./prompts.js";
 
-interface HanaSparqlQaOptions {
-  llm: LLM;
-  sparqlGenerationPrompt: BasePromptTemplate;
-  qaPrompt: BasePromptTemplate;
+export interface HanaSparqlQAChainOptions {
+  llm: BaseChatModel;
+  sparqlGenerationPrompt?: BasePromptTemplate;
+  qaPrompt?: BasePromptTemplate;
   graph: HanaRdfGraph;
   allowDangerousRequests?: boolean;
 }
@@ -104,7 +104,7 @@ export class HanaSparqlQAChain extends BaseChain {
     qaPrompt = SPARQL_QA_PROMPT,
     graph,
     allowDangerousRequests,
-  }: HanaSparqlQaOptions): HanaSparqlQAChain {
+  }: HanaSparqlQAChainOptions): HanaSparqlQAChain {
     const sparqlGenerationChain = RunnableSequence.from([
       sparqlGenerationPrompt,
       llm,

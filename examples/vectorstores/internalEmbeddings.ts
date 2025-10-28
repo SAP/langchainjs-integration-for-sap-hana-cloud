@@ -1,10 +1,10 @@
 import { Document } from "@langchain/core/documents";
 import hanaClient from "@sap/hana-client";
-import { HanaInternalEmbeddings } from "@langchain/community/embeddings/hana_internal";
 import {
   HanaDB,
   HanaDBArgs,
-} from "@sap/hana-langchain/vectorstores";
+  HanaInternalEmbeddings
+} from "@sap/hana-langchain";
 
 // Initialize the internal embeddings instance using the internal model ID.
 // This instance will use SAP HANA's built-in VECTOR_EMBEDDING function of HanaDB.

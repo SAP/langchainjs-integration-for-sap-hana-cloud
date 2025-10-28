@@ -11,7 +11,7 @@ import {
   castValue,
   isFilterEmpty,
 } from "@langchain/core/structured_query";
-import { HanaDB } from "../vectorstores/hanavector.js";
+import { HanaDB } from "../vectorstores/hanaDb.js";
 
 /**
  * Specialized translator for the HanaDB vector database. It extends the

@@ -2,7 +2,7 @@ import hanaClient from "@sap/hana-client";
 import {
   HanaDB,
   HanaDBArgs,
-} from "@sap/hana-langchain/vectorstores";
+} from "@sap/hana-langchain";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { TextLoader } from "langchain/document_loaders/fs/text";
 import { CharacterTextSplitter } from "@langchain/textsplitters";

@@ -6,7 +6,7 @@ import hanaClient from "@sap/hana-client";
 import {
   HanaDB,
   HanaDBArgs,
-} from "@sap/hana-langchain/vectorstores";
+} from "@sap/hana-langchain";
 
 // Connection parameters
 const connectionParams = {

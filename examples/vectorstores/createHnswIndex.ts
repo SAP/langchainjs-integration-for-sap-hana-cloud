@@ -2,7 +2,7 @@ import hanaClient from "@sap/hana-client";
 import {
   HanaDB,
   HanaDBArgs,
-} from "@sap/hana-langchain/vectorstores";
+} from "@sap/hana-langchain";
 import { OpenAIEmbeddings } from "@langchain/openai";
 
 // table "test_fromDocs" is already created with the previous example.

@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
-import { HanaDB } from "../../src/vectorstores/hanavector.js";
-import { CreateWhereClause } from "../../src/vectorstores/whereclausebuilder.js";
+import { HanaDB } from "../../src/index.js";
+import { CreateWhereClause } from "../../src/vectorstores/createWhereClause.js";
 import { FILTERING_TEST_CASES } from "../integration_tests/fixtures/hanavector.fixtures.js";
 
 const dummyHanaDB = {

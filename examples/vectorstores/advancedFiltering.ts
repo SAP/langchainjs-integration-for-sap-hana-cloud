@@ -4,7 +4,7 @@ import { Document } from "@langchain/core/documents";
 import {
   HanaDB,
   HanaDBArgs,
-} from "@sap/hana-langchain/vectorstores";
+} from "@sap/hana-langchain";
 
 const connectionParams = {
   host: process.env.HANA_HOST,
