@@ -26,7 +26,8 @@
     "test:single": "NODE_OPTIONS=--experimental-vm-modules yarn run jest --config jest.config.cjs --testTimeout 100000",
     "test:int": "NODE_OPTIONS=--experimental-vm-modules jest --testPathPattern=\\.int\\.test.ts --testTimeout 100000 --maxWorkers=50%",
     "format": "prettier --config .prettierrc --write \"src\"",
-    "format:check": "prettier --config .prettierrc --check \"src\""
+    "format:check": "prettier --config .prettierrc --check \"src\"",
+    "release": "yarn publish --non-interactive --access public"
   },
   "author": "LangChain",
   "license": "MIT",
@@ -47,12 +48,12 @@
     "@swc/jest": "^0.2.29",
     "@tsconfig/recommended": "^1.0.3",
     "@types/jest": "^29.5.3",
-    "@types/node": "^20.11.17",
     "@types/n3": "^1.26.0",
+    "@types/node": "^20.11.17",
     "@types/sparqljs": "^3.1.0",
     "@typescript-eslint/eslint-plugin": "^6.12.0",
     "@typescript-eslint/parser": "^6.12.0",
-    "dedent" : "^1.7.0",
+    "dedent": "^1.7.0",
     "dotenv": "^16.3.1",
     "dpdm": "^3.12.0",
     "eslint": "^8.33.0",
@@ -69,6 +70,7 @@
     "release-it": "^15.10.1",
     "rollup": "^4.5.2",
     "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.2",
     "typescript": "<5.2.0"
   },
   "publishConfig": {
@@ -87,10 +89,6 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist/",
-    "index.cjs",
-    "index.js",
-    "index.d.ts",
-    "index.d.cts"
+    "dist/"
   ]
 }
