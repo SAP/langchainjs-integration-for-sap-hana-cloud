@@ -257,8 +257,8 @@ export class HanaRdfGraph {
     // Also, HANA allows the graphUris to be simple names instead of full URIs.
     // To handle this, we replace such graphUris with a dummy graphUri.
     const queryWithDummyUri = query.replace(
-      /FROM\s+(?:NAMED\s+)?(?:DEFAULT|<([^>:]+)>)/gi,
-      "FROM $1<http://example.org/dummy_graph>"
+      /FROM\s+(?:NAMED\s+<[^>]+>|<[^>]+>|DEFAULT)/gi,
+      "FROM <http://example.org/dummy_graph>"
     );
     const parsedQuery = parser.parse(queryWithDummyUri);
     if (
@@ -319,9 +319,9 @@ export class HanaRdfGraph {
   }
 
   /**
-   * Returns the currently loaded RDF schema in Turtle format.
+   * Returns the currently loaded RDF schema in a N3 Store Object.
    *
-   * @returns RDF schema as a Turtle string.
+   * @returns RDF schema as a N3 Store Object.
    */
   getSchema(): N3Store {
     return this.schema;

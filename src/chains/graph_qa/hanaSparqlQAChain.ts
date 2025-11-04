@@ -5,7 +5,10 @@ import { BaseChain, ChainInputs } from "langchain/chains";
 import { CallbackManagerForChainRun } from "@langchain/core/callbacks/manager";
 import { ChainValues } from "@langchain/core/utils/types";
 import { StringOutputParser } from "@langchain/core/output_parsers";
+import { Writer } from "n3";
+import { commonPrefixes } from "../../hanautils.js";
 import { HanaRdfGraph } from "../../graphs/hanaRdfGraph.js";
+
 import {
   SPARQL_GENERATION_SELECT_PROMPT,
   SPARQL_QA_PROMPT,
@@ -137,7 +140,7 @@ export class HanaSparqlQAChain extends BaseChain {
     if (queryToks.length === 3) {
       // eslint-disable-next-line prefer-destructuring
       trimmedQuery = queryToks[1];
-      if (trimmedQuery.startsWith("sparql")) {
+      if (trimmedQuery.toLowerCase().startsWith("sparql")) {
         trimmedQuery = trimmedQuery.slice(6);
       }
     } else if (
@@ -156,12 +159,6 @@ export class HanaSparqlQAChain extends BaseChain {
    * @returns The updated query with necessary prefixes added, if missing.
    */
   private ensureCommonPrefixes(query: string): string {
-    const common: Record<string, string> = {
-      rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-      rdfs: "http://www.w3.org/2000/01/rdf-schema#",
-      owl: "http://www.w3.org/2002/07/owl#",
-      xsd: "http://www.w3.org/2001/XMLSchema#",
-    };
 
     const present = new Set<string>();
     for (const line of query.split("\n")) {
@@ -175,7 +172,7 @@ export class HanaSparqlQAChain extends BaseChain {
     }
 
     let prefixLines = "";
-    for (const [p, uri] of Object.entries(common)) {
+    for (const [p, uri] of Object.entries(commonPrefixes)) {
       if (!present.has(p) && query.includes(`${p}:`)) {
         prefixLines += `PREFIX ${p}: <${uri}>\n`;
       }
@@ -199,11 +196,23 @@ export class HanaSparqlQAChain extends BaseChain {
     // Extract user question
     const question = inputs[this.inputKey];
 
+    let serializedSchema = "";
+    const writer = new Writer({ format : "text/turtle", prefixes: commonPrefixes });
+
+    for (const quad of this.graph.getSchema()){
+      writer.addQuad(quad);
+    }
+
+    writer.end((error, result) => {
+      if (error) { throw new Error(`Error serializing RDF graph: ${error.message}`); }
+      serializedSchema = result;
+    });
+
     //  Generate SPARQL query from the question and schema
     let generatedSparql = await this.sparqlGenerationChain.invoke(
       {
         prompt: question,
-        schema: this.graph.getSchema(),
+        schema: serializedSchema,
       },
       { callbacks }
     );

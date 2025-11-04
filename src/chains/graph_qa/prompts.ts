@@ -2,13 +2,14 @@ import { PromptTemplate } from "@langchain/core/prompts";
 
 const SPARQL_GENERATION_SELECT_TEMPLATE = `
 Given the ontology below, create a SPARQL query from the user prompt.
+Generate only SELECT queries - do not generate INSERT, UPDATE, DELETE, CREATE, DROP, or any other modification queries.
 Enclose literals in double quotes. Note that the graph is directed. Edges go from the domain to the range.
 If an RDFS label exists for a class or a property, always retrieve the label.
 Use only the entity types and properties provided in the ontology.
 Do not use any entity types and properties that are not explicitly provided.
 Include all necessary prefixes.
-For instance, to find all actors of the movie "Blade Runner", the following query in backticks would be suitable:
-\`\`\`
+For instance, to find all actors of the movie "Blade Runner", the following SELECT query in fenced code blocks would be suitable:
+\`\`\`sparql
 PREFIX kg: <http://kg.demo.sap.com/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
