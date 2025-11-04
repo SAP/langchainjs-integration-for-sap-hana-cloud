@@ -1,18 +1,15 @@
 import hanaClient from "@sap/hana-client";
-import {
-  HanaDB,
-  HanaDBArgs,
-} from "@sap/hana-langchain";
+import { HanaDB, HanaDBArgs } from "@sap/hana-langchain";
 import { OpenAIEmbeddings } from "@langchain/openai";
 
 // table "test_fromDocs" is already created with the previous example.
 // Now, we will use this existing table to create indexes and perform similarity search.
 
 const connectionParams = {
-  host: process.env.HANA_HOST,
-  port: process.env.HANA_PORT,
-  user: process.env.HANA_UID,
-  password: process.env.HANA_PWD,
+  host: process.env.HANA_DB_ADDRESS,
+  port: process.env.HANA_DB_PORT,
+  user: process.env.HANA_DB_USER,
+  password: process.env.HANA_DB_PASSWORD,
 };
 const client = hanaClient.createConnection(connectionParams);
 
