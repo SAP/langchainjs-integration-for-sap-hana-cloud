@@ -8,7 +8,6 @@ import { StringOutputParser } from "@langchain/core/output_parsers";
 import { Writer } from "n3";
 import { commonPrefixes } from "../../hanautils.js";
 import { HanaRdfGraph } from "../../graphs/hanaRdfGraph.js";
-
 import {
   SPARQL_GENERATION_SELECT_PROMPT,
   SPARQL_QA_PROMPT,
@@ -20,6 +19,7 @@ export interface HanaSparqlQAChainOptions {
   qaPrompt?: BasePromptTemplate;
   graph: HanaRdfGraph;
   allowDangerousRequests?: boolean;
+  debug?: boolean;
 }
 
 /**
@@ -58,6 +58,8 @@ export class HanaSparqlQAChain extends BaseChain {
 
   private allowDangerousRequests = false;
 
+  private debug: boolean = false;
+
   /**
    * Initialize the HanaSparqlQAChain.
    * @param config - Configuration object.
@@ -67,12 +69,14 @@ export class HanaSparqlQAChain extends BaseChain {
     sparqlGenerationChain: Runnable;
     qaChain: Runnable;
     allowDangerousRequests?: boolean;
+    debug?: boolean;
   }) {
     super(config as ChainInputs);
     this.graph = config.graph;
     this.sparqlGenerationChain = config.sparqlGenerationChain;
     this.qaChain = config.qaChain;
     this.allowDangerousRequests = config.allowDangerousRequests ?? false;
+    this.debug = config.debug ?? false;
 
     if (!this.allowDangerousRequests) {
       throw new Error(
@@ -107,6 +111,7 @@ export class HanaSparqlQAChain extends BaseChain {
     qaPrompt = SPARQL_QA_PROMPT,
     graph,
     allowDangerousRequests,
+    debug = false,
   }: HanaSparqlQAChainOptions): HanaSparqlQAChain {
     const sparqlGenerationChain = RunnableSequence.from([
       sparqlGenerationPrompt,
@@ -125,6 +130,7 @@ export class HanaSparqlQAChain extends BaseChain {
       sparqlGenerationChain,
       qaChain,
       allowDangerousRequests,
+      debug,
     });
   }
 
@@ -218,23 +224,29 @@ export class HanaSparqlQAChain extends BaseChain {
     );
 
     // Log the generated SPARQL
-    await runManager?.handleText("Generated SPARQL:\n");
-    await runManager?.handleText(`${generatedSparql}\n`);
+    if (this.debug) {
+      console.log("Generated SPARQL:");
+      console.log(generatedSparql);
+    }
 
     // Extract the SPARQL code from the generated text and inject the from clause
     generatedSparql = HanaSparqlQAChain.extractSparql(generatedSparql);
     generatedSparql = this.graph.injectFromClause(generatedSparql);
     generatedSparql = this.ensureCommonPrefixes(generatedSparql);
 
-    await runManager?.handleText("Final SPARQL:\n");
-    await runManager?.handleText(`${generatedSparql}\n`);
+    if (this.debug) {
+      console.log("Final SPARQL:");
+      console.log(generatedSparql);
+    }
 
     // Execute the generated SPARQL query against the graph
     const context = await this.graph.query(generatedSparql, false);
 
     // Log the full context (SPARQL results)
-    await runManager?.handleText("Full Context:\n");
-    await runManager?.handleText(`${context}\n`);
+    if (this.debug) {
+      console.log("Full Context:");
+      console.log(context);
+    }
 
     // Pass the question and query results into the QA chain
     const qaResult = await this.qaChain.invoke(
