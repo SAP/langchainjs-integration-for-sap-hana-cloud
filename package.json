@@ -34,7 +34,8 @@
   "dependencies": {
     "@sap/hana-client": "^2.25.31",
     "n3": "^1.26.0",
-    "sparqljs": "^3.7.3"
+    "sparqljs": "^3.7.3",
+    "@types/n3": "^1.26.0"
   },
   "peerDependencies": {
     "@langchain/core": "^0.3.78",
@@ -48,7 +49,6 @@
     "@swc/jest": "^0.2.29",
     "@tsconfig/recommended": "^1.0.3",
     "@types/jest": "^29.5.3",
-    "@types/n3": "^1.26.0",
     "@types/node": "^20.11.17",
     "@types/sparqljs": "^3.1.0",
     "@typescript-eslint/eslint-plugin": "^6.12.0",
