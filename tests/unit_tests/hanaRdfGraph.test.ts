@@ -23,6 +23,11 @@ describe('test getSchema return value', () => {
       .spyOn(HanaRdfGraph.prototype as any, 'loadOntologySchemaGraphFromQuery')
       .mockReturnValue(testSchema);
 
+    const validateConstructQueryMock = jest
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .spyOn(HanaRdfGraph as any, 'validateConstructQuery')
+      .mockImplementation(() => {});
+
     const graphOptions = {
       connection: mockConnection,
       autoExtractOntology: true,
@@ -37,5 +42,6 @@ describe('test getSchema return value', () => {
 
     // Restore mocks
     loadOntologyMock.mockRestore();
+    validateConstructQueryMock.mockRestore();
   });
 });
