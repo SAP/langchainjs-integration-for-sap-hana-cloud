@@ -1,0 +1,37 @@
+name: CI
+on:
+  workflow_dispatch:
+  workflow_call: {} 
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    # The 'env:' block at the job level makes these variables available in all steps.
+    env:
+      HANA_DB_ADDRESS: ${{ secrets.HANA_DB_ADDRESS }}
+      HANA_DB_PORT: ${{ secrets.HANA_DB_PORT }}
+      HANA_DB_USER: ${{ secrets.HANA_DB_USER }}
+      HANA_DB_PASSWORD: ${{ secrets.HANA_DB_PASSWORD }}
+      HANA_DB_EMBEDDING_MODEL_ID: ${{ secrets.HANA_DB_EMBEDDING_MODEL_ID }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install yarn
+        run: npm install -g yarn
+      
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Run unit tests
+        run: yarn test
+
+      - name: Run integration tests
+        run: yarn test:int

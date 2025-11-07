@@ -1,0 +1,171 @@
+name: Release
+run-name: Releasing by @${{ github.actor }}
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-tests:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  check-prerelease-dependencies:
+    runs-on: ubuntu-latest
+
+    needs: run-tests
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install yarn
+        run: npm install -g yarn
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Run pre-release dependency check
+        run: node .github/scripts/checkPrereleaseDependencies.js
+
+  build:
+    runs-on: ubuntu-latest
+
+    needs:
+    - run-tests
+    - check-prerelease-dependencies
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install yarn
+        run: npm install -g yarn
+      
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build project
+        run: yarn build
+
+      - name: Upload built artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: ./dist/
+
+  pre-release-checks:
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install yarn
+        run: npm install -g yarn
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Import build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: ./dist/
+      
+      - name: Import built package
+        run: |
+          yarn add ./dist/
+          IMPORT_NAME="$(echo node -p "require('./package.json').name")"
+          ts-node -e "import * as hana-langchain from '$IMPORT_NAME'; console.log(Object.getOwnPropertyNames(hana-langchain));"
+      
+      - name: Run integration tests
+        env:
+          HANA_DB_ADDRESS: ${{ secrets.HANA_DB_ADDRESS }}
+          HANA_DB_PORT: ${{ secrets.HANA_DB_PORT }}
+          HANA_DB_USER: ${{ secrets.HANA_DB_USER }}
+          HANA_DB_PASSWORD: ${{ secrets.HANA_DB_PASSWORD }}
+          HANA_DB_EMBEDDING_MODEL_ID: ${{ secrets.HANA_DB_EMBEDDING_MODEL_ID }}
+        run: yarn test:int
+
+  publish:
+
+    runs-on: ubuntu-latest
+
+    needs: run-tests
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install yarn
+        run: npm install -g yarn
+      
+      - name: Install dependencies
+        run: yarn install
+
+      - name: import build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: ./dist/
+
+      - name: Publish package
+        run: yarn release
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  mark-release:
+    runs-on: ubuntu-latest
+
+    needs: publish
+
+    permissions:
+      # This permission is needed by `ncipollo/release-action` to
+      # create the GitHub release.
+      contents: write
+
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Get package version
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: ./dist/*.tgz
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          generateReleaseNotes: true
+          tag: 'v${{ steps.get_version.outputs.version }}'
+          commit: ${{ github.sha }}
