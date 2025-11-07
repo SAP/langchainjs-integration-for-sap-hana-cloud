@@ -165,7 +165,6 @@ export class HanaSparqlQAChain extends BaseChain {
    * @returns The updated query with necessary prefixes added, if missing.
    */
   private ensureCommonPrefixes(query: string): string {
-
     const present = new Set<string>();
     for (const line of query.split("\n")) {
       const trimmed = line.trim();
@@ -203,14 +202,19 @@ export class HanaSparqlQAChain extends BaseChain {
     const question = inputs[this.inputKey];
 
     let serializedSchema = "";
-    const writer = new Writer({ format : "text/turtle", prefixes: commonPrefixes });
+    const writer = new Writer({
+      format: "text/turtle",
+      prefixes: commonPrefixes,
+    });
 
-    for (const quad of this.graph.getSchema()){
+    for (const quad of this.graph.getSchema()) {
       writer.addQuad(quad);
     }
 
     writer.end((error, result) => {
-      if (error) { throw new Error(`Error serializing RDF graph: ${error.message}`); }
+      if (error) {
+        throw new Error(`Error serializing RDF graph: ${error.message}`);
+      }
       serializedSchema = result;
     });
 
