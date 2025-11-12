@@ -48,13 +48,13 @@ To set up the development environment, follow these steps:
 ## Additional Tips
 
 - **Running Tests**
-  - To run unit tests run
+  - To run unit tests, run
   
     ```bash
     yarn test
     ```
 
-  - To run integration tests run
+  - To run integration tests, run
 
     ```bash
     yarn test:int
@@ -91,6 +91,7 @@ To set up the development environment, follow these steps:
 
 ## File Structure
 
+```text
 root/
 ├── src/
 │   ├── chains/
@@ -137,6 +138,7 @@ root/
 ├── package.json                      # Project dependencies and scripts
 ├── yarn.lock                         # Locked dependency versions
 └── README.md                         # Project documentation
+```
 
 ## Usage Documenation
 
