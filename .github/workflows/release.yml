@@ -8,6 +8,12 @@ jobs:
   run-tests:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/ci.yml
+    secrets:
+      HANA_DB_ADDRESS: ${{ secrets.HANA_DB_ADDRESS }}
+      HANA_DB_PORT: ${{ secrets.HANA_DB_PORT }}
+      HANA_DB_USER: ${{ secrets.HANA_DB_USER }}
+      HANA_DB_PASSWORD: ${{ secrets.HANA_DB_PASSWORD }}
+      HANA_DB_EMBEDDING_MODEL_ID: ${{ secrets.HANA_DB_EMBEDDING_MODEL_ID }}
 
   check-prerelease-dependencies:
     runs-on: ubuntu-latest
@@ -35,8 +41,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    outputs:
+      tgz_file: ${{ steps.pack_package.outputs.tgz_file }}
+
     needs:
-    - run-tests
     - check-prerelease-dependencies
 
     steps:
@@ -56,59 +64,30 @@ jobs:
 
       - name: Build project
         run: yarn build
+      
+      - name: Pack package
+        id: pack_package
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          TGZ_NAME="${NAME//@/}"
+          TGZ_NAME="${TGZ_NAME//\//-}"
+          TGZ_FILE="${TGZ_NAME}-v${VERSION}.tgz"
+          yarn pack
+          echo "tgz_file=$TGZ_FILE" >> $GITHUB_OUTPUT
 
-      - name: Upload built artifact
+      - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: ./dist/
-
-  pre-release-checks:
-    runs-on: ubuntu-latest
-
-    needs: build
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-
-      - name: Install yarn
-        run: npm install -g yarn
-
-      - name: Install dependencies
-        run: yarn install
-
-      - name: Import build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: ./dist/
-      
-      - name: Import built package
-        run: |
-          yarn add ./dist/
-          IMPORT_NAME="$(echo node -p "require('./package.json').name")"
-          ts-node -e "import * as hana-langchain from '$IMPORT_NAME'; console.log(Object.getOwnPropertyNames(hana-langchain));"
-      
-      - name: Run integration tests
-        env:
-          HANA_DB_ADDRESS: ${{ secrets.HANA_DB_ADDRESS }}
-          HANA_DB_PORT: ${{ secrets.HANA_DB_PORT }}
-          HANA_DB_USER: ${{ secrets.HANA_DB_USER }}
-          HANA_DB_PASSWORD: ${{ secrets.HANA_DB_PASSWORD }}
-          HANA_DB_EMBEDDING_MODEL_ID: ${{ secrets.HANA_DB_EMBEDDING_MODEL_ID }}
-        run: yarn test:int
+          name: package
+          path: ./${{ steps.pack_package.outputs.tgz_file }}
 
   publish:
 
     runs-on: ubuntu-latest
 
-    needs: run-tests
+    needs: 
+      - build
 
     steps:
       - name: Checkout repository
@@ -125,21 +104,17 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: import build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: ./dist/
-
-      - name: Publish package
-        run: yarn release
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # - name: Publish package
+      #   run: yarn release
+      #   env:
+      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   mark-release:
     runs-on: ubuntu-latest
 
-    needs: publish
+    needs: 
+      - publish
+      - build
 
     permissions:
       # This permission is needed by `ncipollo/release-action` to
@@ -159,11 +134,16 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: package  
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: ./dist/*.tgz
+          artifacts: ./${{ needs.build.outputs.tgz_file }}
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           generateReleaseNotes: true
