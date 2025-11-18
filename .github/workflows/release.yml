@@ -106,11 +106,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: package
-          path: ./${{ needs.build.outputs.tgz_file }}
+          path: ./dist/
       
       - name: Import built package
         run: |
-          yarn add ./${{ needs.build.outputs.tgz_file }}
+          yarn add ./dist/${{ needs.build.outputs.tgz_file }}
           IMPORT_NAME="$(echo node -p "require('./package.json').name")"
           ts-node -e "import * as hana-langchain from '$IMPORT_NAME'; console.log(Object.getOwnPropertyNames(hana-langchain));"
       
