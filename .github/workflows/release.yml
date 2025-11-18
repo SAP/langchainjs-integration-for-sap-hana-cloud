@@ -41,6 +41,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    outputs:
+      tgz_file: ${{ steps.pack_package.outputs.tgz_file }}
+
     needs:
     - check-prerelease-dependencies
 
@@ -61,12 +64,23 @@ jobs:
 
       - name: Build project
         run: yarn build
+      
+      - name: Pack package
+        id: pack_package
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          TGZ_NAME="${NAME//@/}"
+          TGZ_NAME="${TGZ_NAME//\//-}"
+          TGZ_FILE="${TGZ_NAME}-${VERSION}.tgz"
+          yarn pack
+          echo "tgz_file=$TGZ_FILE" >> $GITHUB_OUTPUT
 
-      - name: Upload built artifact
+      - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: ./dist/
+          name: package
+          path: ./${{ steps.pack_package.outputs.tgz_file }}
 
   pre-release-checks:
     runs-on: ubuntu-latest
@@ -88,15 +102,15 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Import build artifact
+      - name: Import package artifact
         uses: actions/download-artifact@v4
         with:
-          name: dist
-          path: ./dist/
+          name: package
+          path: ./${{ needs.build.outputs.tgz_file }}
       
       - name: Import built package
         run: |
-          yarn add ./dist/
+          yarn add ./${{ needs.build.outputs.tgz_file }}
           IMPORT_NAME="$(echo node -p "require('./package.json').name")"
           ts-node -e "import * as hana-langchain from '$IMPORT_NAME'; console.log(Object.getOwnPropertyNames(hana-langchain));"
       
@@ -113,10 +127,8 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    outputs:
-      tgz_file: ${{ steps.pack_package.outputs.tgz_file }}
-
-    needs: pre-release-checks
+    needs: 
+      - pre-release-checks
 
     steps:
       - name: Checkout repository
@@ -133,29 +145,6 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: import build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: ./dist/
-      
-      - name: Pack package
-        id: pack_package
-        run: |
-          NAME=$(node -p "require('./package.json').name")
-          VERSION=$(node -p "require('./package.json').version")
-          TGZ_NAME="${NAME//@/}"
-          TGZ_NAME="${TGZ_NAME//\//-}"
-          TGZ_FILE="${TGZ_NAME}-${VERSION}.tgz"
-          yarn pack
-          echo "tgz_file=$TGZ_FILE" >> $GITHUB_OUTPUT
-
-      - name: Upload package artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: package
-          path: ./${{ steps.pack_package.outputs.tgz_file }}
-
       # - name: Publish package
       #   run: yarn release
       #   env:
@@ -164,7 +153,9 @@ jobs:
   mark-release:
     runs-on: ubuntu-latest
 
-    needs: publish
+    needs: 
+      - publish
+      - build
 
     permissions:
       # This permission is needed by `ncipollo/release-action` to
@@ -193,7 +184,7 @@ jobs:
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: ./${{ needs.publish.outputs.tgz_file }}
+          artifacts: ./${{ needs.build.outputs.tgz_file }}
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           generateReleaseNotes: true
