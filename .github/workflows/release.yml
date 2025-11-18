@@ -108,6 +108,9 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    outputs:
+      tgz_file: ${{ steps.pack_package.outputs.tgz_file }}
+
     needs: run-tests
 
     steps:
@@ -130,11 +133,28 @@ jobs:
         with:
           name: dist
           path: ./dist/
+      
+      - name: Pack package
+        id: pack_package
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          TGZ_NAME="${NAME//@/}"
+          TGZ_NAME="${TGZ_NAME//\//-}"
+          TGZ_FILE="${TGZ_NAME}-${VERSION}.tgz"
+          yarn pack
+          echo "tgz_file=$TGZ_FILE" >> $GITHUB_OUTPUT
 
-      - name: Publish package
-        run: yarn release
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: ./${{ steps.pack_package.outputs.tgz_file }}
+
+      # - name: Publish package
+      #   run: yarn release
+      #   env:
+      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   mark-release:
     runs-on: ubuntu-latest
@@ -159,11 +179,16 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: package  
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: ./dist/*.tgz
+          artifacts: ./${{ needs.publish.outputs.tgz_file }}
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           generateReleaseNotes: true
