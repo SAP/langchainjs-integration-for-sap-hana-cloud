@@ -111,8 +111,7 @@ jobs:
       - name: Import built package
         run: |
           yarn add ./dist/${{ needs.build.outputs.tgz_file }}
-          IMPORT_NAME="$(echo node -p "require('./package.json').name")"
-          ts-node -e "import * as hana-langchain from '$IMPORT_NAME'; console.log(Object.getOwnPropertyNames(hana-langchain));"
+          node ./github/scripts/checkImportBuiltPackage.js
       
       - name: Run integration tests
         env:
