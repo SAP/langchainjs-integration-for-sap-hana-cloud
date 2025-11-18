@@ -106,11 +106,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: package
-          path: ./dist/
+          path: ./package/
       
       - name: Import built package
         run: |
-          yarn add ./dist/${{ needs.build.outputs.tgz_file }}
+          yarn add ./package/${{ needs.build.outputs.tgz_file }}
           node .github/scripts/checkImportBuiltPackage.js
       
       - name: Run integration tests
