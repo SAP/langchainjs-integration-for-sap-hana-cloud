@@ -1,7 +1,18 @@
 name: CI
 on:
   workflow_dispatch:
-  workflow_call: {} 
+  workflow_call:
+    secrets:
+      HANA_DB_ADDRESS:
+        required: true
+      HANA_DB_PORT:
+        required: true
+      HANA_DB_USER:
+        required: true
+      HANA_DB_PASSWORD:
+        required: true
+      HANA_DB_EMBEDDING_MODEL_ID:
+        required: true
 
 jobs:
   build-and-test:
