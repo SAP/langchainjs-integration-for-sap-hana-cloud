@@ -111,7 +111,7 @@ jobs:
       - name: Import built package
         run: |
           yarn add ./dist/${{ needs.build.outputs.tgz_file }}
-          node ./github/scripts/checkImportBuiltPackage.js
+          node .github/scripts/checkImportBuiltPackage.js
       
       - name: Run integration tests
         env:
