@@ -36,7 +36,6 @@ jobs:
     runs-on: ubuntu-latest
 
     needs:
-    - run-tests
     - check-prerelease-dependencies
 
     steps:
@@ -111,7 +110,7 @@ jobs:
     outputs:
       tgz_file: ${{ steps.pack_package.outputs.tgz_file }}
 
-    needs: run-tests
+    needs: pre-release-checks
 
     steps:
       - name: Checkout repository
