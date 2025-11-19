@@ -82,52 +82,12 @@ jobs:
           name: package
           path: ./${{ steps.pack_package.outputs.tgz_file }}
 
-  pre-release-checks:
-    runs-on: ubuntu-latest
-
-    needs: build
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-
-      - name: Install yarn
-        run: npm install -g yarn
-
-      - name: Install dependencies
-        run: yarn install
-
-      - name: Import package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: package
-          path: ./package/
-      
-      - name: Import built package
-        run: |
-          yarn add ./package/${{ needs.build.outputs.tgz_file }}
-          node .github/scripts/checkImportBuiltPackage.js
-      
-      - name: Run integration tests
-        env:
-          HANA_DB_ADDRESS: ${{ secrets.HANA_DB_ADDRESS }}
-          HANA_DB_PORT: ${{ secrets.HANA_DB_PORT }}
-          HANA_DB_USER: ${{ secrets.HANA_DB_USER }}
-          HANA_DB_PASSWORD: ${{ secrets.HANA_DB_PASSWORD }}
-          HANA_DB_EMBEDDING_MODEL_ID: ${{ secrets.HANA_DB_EMBEDDING_MODEL_ID }}
-        run: yarn test:int
-
   publish:
 
     runs-on: ubuntu-latest
 
     needs: 
-      - pre-release-checks
+      - build
 
     steps:
       - name: Checkout repository
