@@ -1,6 +1,11 @@
-import { expect } from "@jest/globals";
-import { HanaDB } from "../../src/index.js";
+import {
+  describe,
+  expect,
+  it,
+  test,
+} from "vitest";
 import { validateK, validateKAndFetchK } from "../../src/hanautils.js";
+import { HanaDB } from "../../src/index.js";
 
 describe("Sanity check tests", () => {
   it("should sanitize int with illegal value", () => {

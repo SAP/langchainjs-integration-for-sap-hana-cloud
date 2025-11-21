@@ -7,8 +7,8 @@ import {
   ChatOpenAI,
   OpenAIEmbeddings,
 } from "@langchain/openai";
-import { AttributeInfo } from "langchain/chains/query_constructor";
-import { SelfQueryRetriever } from "langchain/retrievers/self_query";
+import { AttributeInfo } from "@langchain/classic/chains/query_constructor";
+import { SelfQueryRetriever } from "@langchain/classic/retrievers/self_query";
 
 /**
  * Prerequisite: Self Query features require

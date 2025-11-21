@@ -2,12 +2,25 @@
 import hanaClient, { Connection } from "@sap/hana-client";
 // import hdbClient from "hdb";
 import { FakeEmbeddings } from "@langchain/core/utils/testing";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from "vitest";
+import {
+  executeQuery,
+  executeStatement,
+  prepareQuery,
+} from "../../src/hanautils.js";
 import { HanaDB, HanaDBArgs } from "../../src/index.js";
 import {
   FILTERING_DOCUMENTS,
   FILTERING_TEST_CASES,
 } from "./fixtures/hanaDb.fixtures.js";
-import { HanaTestUtils } from "./hana.test.utils.js";
 import {
   DOCUMENTS,
   METADATAS,
@@ -15,11 +28,7 @@ import {
   TABLE_NAME_CUSTOM_DB,
   TEXTS,
 } from "./hana.test.constants.js";
-import {
-  executeQuery,
-  executeStatement,
-  prepareQuery,
-} from "../../src/hanautils.js";
+import { HanaTestUtils } from "./hana.test.utils.js";
 // Connection parameters
 const connectionParams = {
   host: process.env.HANA_DB_ADDRESS,
@@ -1085,7 +1094,7 @@ describe.each(["REAL_VECTOR", "HALF_VECTOR"])(
         try {
           await vectorDB.createHnswIndex();
         } catch (e) {
-          fail(`Failed to create HNSW index: ${e}`);
+          throw new Error(`Failed to create HNSW index: ${e}`);
         }
 
         const results = await vectorDB.maxMarginalRelevanceSearch(TEXTS[0], {
