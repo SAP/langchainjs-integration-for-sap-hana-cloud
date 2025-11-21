@@ -144,7 +144,6 @@ export class HanaSparqlQAChain extends BaseChain {
     let trimmedQuery = query.trim();
     const queryToks = trimmedQuery.split("```");
     if (queryToks.length === 3) {
-      // eslint-disable-next-line prefer-destructuring
       trimmedQuery = queryToks[1];
       if (trimmedQuery.toLowerCase().startsWith("sparql")) {
         trimmedQuery = trimmedQuery.slice(6);
