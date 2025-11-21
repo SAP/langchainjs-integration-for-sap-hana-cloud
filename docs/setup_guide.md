@@ -13,7 +13,7 @@ This document provides guidelines for setting up the development environment for
 To work on the package as a developer, you will need the following tools:
 
 1. **Node**
-   - This project uses Node v18+ as a Runtime Environment, as used by LangChain.
+   - This project uses Node v20+ as a Runtime Environment, as used by LangChain.
    - Refer to the [Node installation guide](https://nodejs.org/en/download) for instructions on how to install Node.
 
 2. **Pnpm**
