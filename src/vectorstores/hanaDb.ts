@@ -1021,9 +1021,9 @@ export class HanaDB extends VectorStore {
     }", "${this.metadataColumn}", "${
       this.vectorColumn
     }"${specificMetadataColumnsString})
-                    VALUES (?, ?, ${vectorEmbeddingSql}${", ?".repeat(
-                      this.specificMetadataColumns.length
-                    )});`;
+    VALUES (?, ?, ${vectorEmbeddingSql}${", ?".repeat(
+      this.specificMetadataColumns.length
+    )});`;
     const stm = await prepareQuery(client, sqlStr);
     await executeBatchStatement(stm, sqlParams);
   }
