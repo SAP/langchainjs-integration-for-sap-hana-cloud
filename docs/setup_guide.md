@@ -17,7 +17,7 @@ To work on the package as a developer, you will need the following tools:
    - Refer to the [Node installation guide](https://nodejs.org/en/download) for instructions on how to install Node.
 
 2. **Pnpm**
-   - This project uses Yarn as the dependency manager.
+   - This project uses pnpm as the dependency manager.
    - To install it globally run:
 
        ```bash
