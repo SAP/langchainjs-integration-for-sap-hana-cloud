@@ -21,13 +21,24 @@ import {
   prepareQuery,
 } from "../../src/hanautils.js";
 // Connection parameters factory
-const createConnectionParams = (vectorOutputType: "Array" | "Buffer") => ({
-  host: process.env.HANA_DB_ADDRESS,
-  port: process.env.HANA_DB_PORT,
-  user: process.env.HANA_DB_USER,
-  password: process.env.HANA_DB_PASSWORD,
-  vectorOutputType,
-});
+const createConnectionParams = (vectorOutputType?: "Array" | "Buffer") => {
+  const params: {
+    host: string | undefined;
+    port: string | undefined;
+    user: string | undefined;
+    password: string | undefined;
+    vectorOutputType?: "Array" | "Buffer";
+  } = {
+    host: process.env.HANA_DB_ADDRESS,
+    port: process.env.HANA_DB_PORT,
+    user: process.env.HANA_DB_USER,
+    password: process.env.HANA_DB_PASSWORD,
+  };
+  if (vectorOutputType !== undefined) {
+    params.vectorOutputType = vectorOutputType;
+  }
+  return params;
+};
 
 //  Fake normalized embeddings which remember all the texts seen so far to return consistent vectors for the same texts.
 class NormalizedConsistentFakeEmbeddings extends FakeEmbeddings {
@@ -84,8 +95,8 @@ class Config {
 
 let config: Config;
 
-describe.each(["Array", "Buffer"] as const)(
-  "tests with all vector output types",
+describe.each(["Array", "Buffer", undefined] as const)(
+  "tests with vectorOutputType=%s",
   (vectorOutputType) => {
     beforeAll(async () => {
       expect(process.env.HANA_DB_ADDRESS).toBeDefined();
