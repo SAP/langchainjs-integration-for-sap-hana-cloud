@@ -13,15 +13,15 @@ This document provides guidelines for setting up the development environment for
 To work on the package as a developer, you will need the following tools:
 
 1. **Node**
-   - This project uses Node v18+ as a Runtime Environment, as used by LangChain.
+   - This project uses Node v20+ as a Runtime Environment, as used by LangChain.
    - Refer to the [Node installation guide](https://nodejs.org/en/download) for instructions on how to install Node.
 
-2. **Yarn**
-   - This project uses Yarn as the dependency manager.
+2. **Pnpm**
+   - This project uses pnpm as the dependency manager.
    - To install it globally run:
 
        ```bash
-       npm install -g yarn
+       npm install -g pnpm
        ```
 
 3. **ESLint**
@@ -40,7 +40,7 @@ To set up the development environment, follow these steps:
 2. Run the following command to install all necessary dependencies:
 
     ```bash
-    yarn install
+    pnpm install
     ```
 
 3. You are now ready to work on the package!
@@ -51,40 +51,40 @@ To set up the development environment, follow these steps:
   - To run unit tests, run
   
     ```bash
-    yarn test
+    pnpm test
     ```
 
   - To run integration tests, run
 
     ```bash
-    yarn test:int
+    pnpm test:int
     ```
 
 - **Formating and Linting**
   - To format code files, run
 
     ```bash
-    yarn format
+    pnpm format
     ```
 
   - To lint code files, run
 
     ```bash
-    yarn lint
+    pnpm lint
     ```
 
 - **Creating Distribution Artifacts**
   - To create distribution artifacts, run (output will be created in /dist):
 
     ```bash
-    yarn build
+    pnpm build
     ```
 
 - **Changing the Version**
   - To update the package version, use Poetry's versioning command:
 
     ```bash
-    yarn version --new-version <new_version>
+    pnpm version <new_version>
     ```
 
     Replace `<new_version>` with the desired version (e.g., `1.0.1`). This will update the `package.json` file automatically.

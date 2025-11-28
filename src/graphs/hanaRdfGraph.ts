@@ -209,7 +209,6 @@ export class HanaRdfGraph {
     ].filter(Boolean).length;
 
     if (schemaSourceCount === 0 && options.autoExtractOntology) {
-      // eslint-disable-next-line no-param-reassign
       options.ontologyQuery = this.getGenericOntologyQuery();
       schemaSourceCount = 1;
     }
@@ -233,7 +232,6 @@ export class HanaRdfGraph {
       );
     } else {
       if (options.ontologyUri) {
-        // eslint-disable-next-line no-param-reassign
         options.ontologyQuery = `CONSTRUCT { ?s ?p ?o } FROM <${options.ontologyUri}> WHERE { ?s ?p ?o . }`;
       }
 
