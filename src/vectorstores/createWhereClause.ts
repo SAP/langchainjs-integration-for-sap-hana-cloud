@@ -265,7 +265,6 @@ export class CreateWhereClause {
     ) {
       return ["TO_DATE(?)", value.date.toString()];
     }
-    
     if (theType === "object") {
       throw new Error(`Cannot handle value ${JSON.stringify(value)}`);
     }
