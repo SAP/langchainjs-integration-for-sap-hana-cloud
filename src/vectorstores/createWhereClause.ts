@@ -182,9 +182,6 @@ export class CreateWhereClause {
     if (!(operator in COLUMN_OPERATORS)) {
       throw new Error(`${operator} is not a valid column operator.`);
     }
-    if (operands === undefined || operands === null) {
-      throw new Error("No operands provided");
-    }
 
     const sqlOperator = COLUMN_OPERATORS[operator];
     const selector = this.createSelector(column);
@@ -242,34 +239,38 @@ export class CreateWhereClause {
 
   // hdb requires string while sap/hana-client doesn't
   private static determineTypedSqlPlaceholder(
-    value: string | number | boolean | DateValue
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    value: any
   ): [string, string] {
+    const theType = typeof value;
+
+    // Handle plain values
+    if (theType === "boolean") {
+      return ["TO_BOOLEAN(?)", value ? "true" : "false"];
+    }
+    if (theType === "number") {
+      return ["TO_DOUBLE(?)", value.toString()];
+    }
+
+    // Do not accept empty values
+    if (!value) {
+      throw new Error("No operands provided");
+    }
+
+    // Handle container types: only allowed for dates.
     if (
-      typeof value === "object" &&
-      value !== null &&
+      value instanceof Object &&
       "type" in value &&
       value.type === "date"
     ) {
       return ["TO_DATE(?)", value.date.toString()];
     }
-    if (typeof value === "object" && value !== null) {
+    if (value instanceof Object) {
       throw new Error(`Cannot handle value ${JSON.stringify(value)}`);
     }
 
-    switch (typeof value) {
-      case "boolean":
-        return ["TO_BOOLEAN(?)", value ? "true" : "false"];
-      case "number":
-        // TO_DOUBLE can handle both integers and floats in HANA SQL.
-        return ["TO_DOUBLE(?)", value.toString()];
-      case "string":
-        console.warn(
-          `Using plain SQL placeholder '?' for string value: ${value}`
-        );
-        return ["?", value];
-      default:
-        throw new Error(`Unsupported type for placeholder: ${typeof value}`);
-    }
+    console.warn(`Using plain SQL placeholder '?' for string value: ${value}`);
+    return ["?", value];
   }
 
   private static sqlSerializeLogicalClauses(
