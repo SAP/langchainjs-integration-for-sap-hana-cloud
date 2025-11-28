@@ -93,7 +93,6 @@ export function executeStatement(
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function executeBatchStatement(
   statement: Statement | undefined,
   params: HanaParameterType[][]

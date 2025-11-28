@@ -89,56 +89,7 @@ To set up the development environment, follow these steps:
 
     Replace `<new_version>` with the desired version (e.g., `1.0.1`). This will update the `package.json` file automatically.
 
-## File Structure
-
-```text
-root/
-├── src/
-│   ├── chains/
-|   |   │
-│   |   |── graph_qa/
-│   │   |   ├── hanaSparqlQaChain.ts   # HanaSparqlQAChain for Graph RAG
-|   |   |   |── index.ts
-│   │   └── index.ts
-│   │
-│   ├── embeddings/
-│   │   ├── hanaInternalEmbeddings.ts  # Internal Embeddings provided by HANA
-│   │   └── index.ts
-│   │
-│   ├── graphs/
-│   │   ├── hanaRdfGraph.ts            # HanaRdfGraph for SPARQL Query Execution
-│   │   └── index.ts
-│   │
-│   ├── vectorstores/
-│   │   ├── hanaDb.ts                  # HanaDb Vectorstore
-│   │   └── index.ts
-│   │
-│   ├── structured_query/
-│   │   ├── hanaTranslator.ts          # HanaTranslator for Structured Queries
-│   │   └── index.ts
-│   │
-|   |── index.ts                       # Export all components from the individual modules
-│   └── hanaUtils.ts                   # Utility functions, constants, and types
-│
-├── tests/
-│   ├── unit_tests/                    # Unit tests for individual components
-│   └── integration_tests/             # Integration tests across modules
-│
-├── examples/
-│   ├── chains/
-│   ├── embeddings/
-│   ├── graphs/
-│   ├── vectorstores/
-│   └── structured_query/
-│                                     # Example implementations and usage for each module
-│
-├── .github/
-│   └── workflows/                    # GitHub Actions for CI/CD
-│
-├── package.json                      # Project dependencies and scripts
-├── yarn.lock                         # Locked dependency versions
-└── README.md                         # Project documentation
-```
+---
 
 ## Usage Documenation
 
