@@ -1,5 +1,4 @@
 /* eslint-disable no-process-env */
-// eslint-disable-next-line import/no-extraneous-dependencies
 import hanaClient, { Connection } from "@sap/hana-client";
 import { HanaTestUtils } from "./hana.test.utils.js";
 import { HanaInternalEmbeddings, HanaDB, HanaDBArgs } from "../../src/index.js";
