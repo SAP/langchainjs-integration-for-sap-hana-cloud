@@ -416,6 +416,18 @@ export class HanaDB extends VectorStore {
   }
 
   /**
+   * Handles different vector output types from HANA DB.
+   * @param vector The vector output returned
+   * @returns The processed vector as an array of numbers.
+   */
+  private handleVectorOutputType(vector: number[] | Buffer): number[] {
+    if (Buffer.isBuffer(vector)) {
+      return this.deserializeBinaryFormat(vector);
+    }
+    return vector;
+  }
+
+  /**
    * Generates query embedding using HANA's internal embedding engine.
    * @param query Query string to embed.
    */
@@ -428,7 +440,7 @@ export class HanaDB extends VectorStore {
     const sqlStr = `SELECT ${vectorEmbeddingSql} AS EMBEDDING FROM sys.DUMMY;`;
     const stm = await prepareQuery(this.connection, sqlStr);
     const rows = await executeStatement(stm, sqlParams);
-    return this.deserializeBinaryFormat(rows[0].EMBEDDING);
+    return this.handleVectorOutputType(rows[0].EMBEDDING);
   }
 
   constructor(embeddings: EmbeddingsInterface, args: HanaDBArgs) {
@@ -1294,7 +1306,7 @@ export class HanaDB extends VectorStore {
           pageContent: row[this.contentColumn].toString("utf8"),
           metadata,
         };
-        const resultVector = this.deserializeBinaryFormat(row.VECTOR);
+        const resultVector = this.handleVectorOutputType(row.VECTOR);
         const score = row.CS;
         return [doc, score, resultVector];
       }
