@@ -259,13 +259,13 @@ export class CreateWhereClause {
 
     // Handle container types: only allowed for dates.
     if (
-      value instanceof Object &&
+      theType === "object" &&
       "type" in value &&
       value.type === "date"
     ) {
       return ["TO_DATE(?)", value.date.toString()];
     }
-    if (value instanceof Object) {
+    if (theType === "object") {
       throw new Error(`Cannot handle value ${JSON.stringify(value)}`);
     }
 
