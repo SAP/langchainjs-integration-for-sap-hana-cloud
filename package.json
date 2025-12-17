@@ -28,8 +28,7 @@
     "format": "prettier --config .prettierrc --write \"src\"",
     "format:check": "prettier --config .prettierrc --check \"src\""
   },
-  "author": "LangChain",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "@sap/hana-client": "^2.25.31",
     "@types/n3": "^1.26.0",
