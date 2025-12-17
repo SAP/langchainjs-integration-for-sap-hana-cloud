@@ -12,6 +12,15 @@ const internalEmbeddings = new HanaInternalEmbeddings({
   internalEmbeddingModelId:
     process.env.HANA_DB_EMBEDDING_MODEL_ID || "SAP_NEB.20240715",
 });
+// optionally, you can specify a remote source to use models from your deployed SAP AI CORE instance:
+/*
+const internalEmbeddings = new HanaInternalEmbeddings({
+  internalEmbeddingModelId:
+    process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID || "REMOTE_MODEL_ID",
+  remoteSource:
+    process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE || "YOUR_REMOTE_SOURCE_NAME",
+});
+*/
 
 // Set up connection parameters from environment variables.
 const connectionParams = {

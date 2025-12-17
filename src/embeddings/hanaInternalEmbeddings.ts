@@ -2,12 +2,18 @@ import { Embeddings, type EmbeddingsParams } from "@langchain/core/embeddings";
 
 /**
  * Parameters for initializing HanaInternalEmbeddings.
+ * @property internalEmbeddingModelId - The ID of the internal embedding model used by the HANA database.
+ * @property remoteSource - (Optional) The remote source name if using a deployed SAP AI CORE instance.
  */
 export interface HanaInternalEmbeddingsParams extends EmbeddingsParams {
   /**
    * The ID of the internal embedding model used by the HANA database.
    */
   internalEmbeddingModelId: string;
+  /**
+   * (Optional) The remote source name if using a deployed SAP AI CORE instance.
+   */
+  remoteSource?: string;
 }
 
 /**
@@ -29,6 +35,7 @@ export interface HanaInternalEmbeddingsParams extends EmbeddingsParams {
  */
 export class HanaInternalEmbeddings extends Embeddings {
   private modelId: string;
+  private remoteSource: string;
 
   /**
    * A flag to indicate this class is HANA-specific.
@@ -38,6 +45,7 @@ export class HanaInternalEmbeddings extends Embeddings {
   constructor(fields: HanaInternalEmbeddingsParams) {
     super(fields);
     this.modelId = fields.internalEmbeddingModelId;
+    this.remoteSource = fields.remoteSource || "";
   }
 
   /**
@@ -66,5 +74,9 @@ export class HanaInternalEmbeddings extends Embeddings {
    */
   getModelId(): string {
     return this.modelId;
+  }
+
+  getRemoteSource(): string {
+    return this.remoteSource;
   }
 }
