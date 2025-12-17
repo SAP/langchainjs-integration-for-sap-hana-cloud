@@ -1,13 +1,22 @@
+import hanaClient, { Connection } from "@sap/hana-client";
 import dedent from "dedent";
-import * as path from "path";
 import * as fs from "fs";
 import { Parser as N3Parser, Store as N3Store } from "n3";
+import * as path from "path";
 import { isomorphic } from "rdf-isomorphic";
-import hanaClient, { Connection } from "@sap/hana-client";
 import { fileURLToPath } from "url";
-import { HanaTestUtils } from "./hana.test.utils.js";
-import { HanaRdfGraph, HanaRdfGraphOptions } from "../../src/index.js";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from "vitest";
 import { executeSparqlQuery } from "../../src/hanautils.js";
+import { HanaRdfGraph, HanaRdfGraphOptions } from "../../src/index.js";
+import { HanaTestUtils } from "./hana.test.utils.js";
 
 /* eslint-disable no-process-env */
 const connectionParams = {

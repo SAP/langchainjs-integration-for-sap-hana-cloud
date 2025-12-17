@@ -14,7 +14,7 @@ Integrates LangChain.js with SAP HANA Cloud to make use of vector search, knowle
 - **Peer Dependencies Installed**: This package requries these versions langchain and @langchain/core to be installed.
 
 ```bash
-npm install @langchain/core@0.3.78 langchain@0.3.36
+npm install @langchain/core@latest @langchain/classic@latest langchain@latest
 ```
 
 - **SAP HANA Cloud**: Access to a running SAP HANA Cloud instance.

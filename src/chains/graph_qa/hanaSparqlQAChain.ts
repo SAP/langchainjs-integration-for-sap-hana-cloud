@@ -1,7 +1,7 @@
 import { BasePromptTemplate } from "@langchain/core/prompts";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { Runnable, RunnableSequence } from "@langchain/core/runnables";
-import { BaseChain, ChainInputs } from "langchain/chains";
+import { BaseChain, ChainInputs } from "@langchain/classic/chains";
 import { CallbackManagerForChainRun } from "@langchain/core/callbacks/manager";
 import { ChainValues } from "@langchain/core/utils/types";
 import { StringOutputParser } from "@langchain/core/output_parsers";

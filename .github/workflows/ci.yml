@@ -41,14 +41,14 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install yarn
-        run: npm install -g yarn
+      - name: Install pnpm
+        run: npm install -g pnpm
       
       - name: Install dependencies
-        run: yarn install
+        run: pnpm install
 
       - name: Run unit tests
-        run: yarn test
+        run: pnpm test
 
       - name: Run integration tests
-        run: yarn test:int
+        run: pnpm test:int

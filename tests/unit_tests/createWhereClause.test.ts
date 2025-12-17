@@ -1,11 +1,16 @@
-import { jest } from "@jest/globals";
+import {
+  describe,
+  expect,
+  test,
+  vi
+} from "vitest";
 import { HanaDB } from "../../src/index.js";
 import { CreateWhereClause } from "../../src/vectorstores/createWhereClause.js";
 import { FILTERING_TEST_CASES } from "../integration_tests/fixtures/hanaDb.fixtures.js";
 
 const dummyHanaDB = {
-  getMetadataColumn: jest.fn().mockReturnValue("VEC_META"),
-  getSpecificMetadataColumns: jest.fn().mockReturnValue([]),
+  getMetadataColumn: vi.fn().mockReturnValue("VEC_META"),
+  getSpecificMetadataColumns: vi.fn().mockReturnValue([]),
 } as unknown as HanaDB;
 
 describe("where clause creation tests", () => {

@@ -434,8 +434,13 @@ export class HanaDB extends VectorStore {
    * @param query Query string to embed.
    */
   private async embedQueryHanaInternal(query: string): Promise<number[]> {
-    const generatedSqlAndParams = this.generateVectorEmbeddingSqlandParams(query, "QUERY");
-    const vectorEmbeddingSql = this.convertVectorEmbeddingToColumnType(generatedSqlAndParams[0]);
+    const generatedSqlAndParams = this.generateVectorEmbeddingSqlandParams(
+      query,
+      "QUERY"
+    );
+    const vectorEmbeddingSql = this.convertVectorEmbeddingToColumnType(
+      generatedSqlAndParams[0]
+    );
     const vectorEmbeddingSqlParams = generatedSqlAndParams[1];
     const sqlStr = `SELECT ${vectorEmbeddingSql} AS EMBEDDING FROM sys.DUMMY;`;
     const stm = await prepareQuery(this.connection, sqlStr);
@@ -500,13 +505,15 @@ export class HanaDB extends VectorStore {
     }
   }
 
-  private generateVectorEmbeddingSqlandParams(text: string, type: "QUERY" | "DOCUMENT"): [string, HanaParameterType[]] {
+  private generateVectorEmbeddingSqlandParams(
+    text: string,
+    type: "QUERY" | "DOCUMENT"
+  ): [string, HanaParameterType[]] {
     const vectorEmbeddingParms = [text, this.internalEmbeddingModelId];
-    let vectorEmbeddingSql ;
+    let vectorEmbeddingSql;
     if (!this.internalEmbeddingRemoteSource) {
       vectorEmbeddingSql = `VECTOR_EMBEDDING(?, '${type}', ?)`;
-    }
-    else {
+    } else {
       vectorEmbeddingSql = `VECTOR_EMBEDDING(?, '${type}', ?, "${this.internalEmbeddingRemoteSource}")`;
     }
     return [vectorEmbeddingSql, vectorEmbeddingParms];
@@ -525,9 +532,9 @@ export class HanaDB extends VectorStore {
     if (!this.internalEmbeddingModelId) {
       throw new Error("Internal embedding model id is not set");
     }
-    const [vectorEmbeddingSql, vectorEmbeddingParms] = this.generateVectorEmbeddingSqlandParams("test", "QUERY");
-    const sqlStr =
-      `SELECT COUNT(TO_NVARCHAR(${vectorEmbeddingSql})) AS TEST FROM sys.DUMMY;`;
+    const [vectorEmbeddingSql, vectorEmbeddingParms] =
+      this.generateVectorEmbeddingSqlandParams("test", "QUERY");
+    const sqlStr = `SELECT COUNT(TO_NVARCHAR(${vectorEmbeddingSql})) AS TEST FROM sys.DUMMY;`;
     const client = this.connection;
     const stm = await prepareQuery(client, sqlStr);
     await executeStatement(stm, vectorEmbeddingParms);
@@ -1038,7 +1045,10 @@ export class HanaDB extends VectorStore {
     const specificMetadataColumnsString =
       this.getSpecificMetadataColumnsString();
 
-    let vectorEmbeddingSql = this.generateVectorEmbeddingSqlandParams("?", "DOCUMENT")[0];
+    let vectorEmbeddingSql = this.generateVectorEmbeddingSqlandParams(
+      "?",
+      "DOCUMENT"
+    )[0];
     vectorEmbeddingSql =
       this.convertVectorEmbeddingToColumnType(vectorEmbeddingSql);
 
@@ -1238,8 +1248,13 @@ export class HanaDB extends VectorStore {
         "Internal embedding search requires an internal embedding instance."
       );
     }
-    const generatedSqlAndParams = this.generateVectorEmbeddingSqlandParams(query, "QUERY");
-    const vectorEmbeddingSql = this.convertVectorEmbeddingToColumnType(generatedSqlAndParams[0]);
+    const generatedSqlAndParams = this.generateVectorEmbeddingSqlandParams(
+      query,
+      "QUERY"
+    );
+    const vectorEmbeddingSql = this.convertVectorEmbeddingToColumnType(
+      generatedSqlAndParams[0]
+    );
     const vectorEmbeddingParams = generatedSqlAndParams[1];
 
     return this.similaritySearchWithScoreAndVector(
