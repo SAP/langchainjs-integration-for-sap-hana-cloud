@@ -108,13 +108,18 @@ jobs:
         with:
           node-version: '20'
           registry-url: "https://registry.npmjs.org"
+      
+      - name: Install latest npm cli
+        run: npm install -g npm@latest
 
       - name: Install yarn
         run: npm install -g yarn
       
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-
+      
+      # --provenance enables the automatic generation of provenance statements (when using trusted publisher, this is automatically enabled and therefore optional)
+      # npm version >=11.5.1 required for trusted publisher
       - name: Publish package
         run: npm publish --provenance --access public
 
