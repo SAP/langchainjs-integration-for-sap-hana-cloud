@@ -1,6 +1,6 @@
 {
   "name": "@sap/hana-langchain",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Integrates LangChain.js with SAP HANA Cloud to make use of vector search, knowledge graph, and further in-database capabilities as part of LLM-driven applications.",
   "type": "module",
   "engines": {
