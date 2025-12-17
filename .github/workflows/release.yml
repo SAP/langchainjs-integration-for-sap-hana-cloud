@@ -69,7 +69,7 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           TGZ_NAME="${NAME//@/}"
           TGZ_NAME="${TGZ_NAME//\//-}"
-          TGZ_FILE="${TGZ_NAME}-v${VERSION}.tgz"
+          TGZ_FILE="${TGZ_NAME}-${VERSION}.tgz"
           pnpm pack
           echo "tgz_file=$TGZ_FILE" >> $GITHUB_OUTPUT
 
