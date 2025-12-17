@@ -79,6 +79,12 @@ jobs:
           yarn pack
           echo "tgz_file=$TGZ_FILE" >> $GITHUB_OUTPUT
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path : ./dist
+
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
@@ -112,11 +118,10 @@ jobs:
       - name: Install latest npm cli
         run: npm install -g npm@latest
 
-      - name: Install yarn
-        run: npm install -g yarn
-      
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
+      - name : Download built package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
       
       # --provenance enables the automatic generation of provenance statements (when using trusted publisher, this is automatically enabled and therefore optional)
       # npm version >=11.5.1 required for trusted publisher
