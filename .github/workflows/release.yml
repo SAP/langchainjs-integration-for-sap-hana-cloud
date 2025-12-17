@@ -122,6 +122,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: dist
+          path : ./dist
       
       - name: List top-level folders
         run: ls -d $GITHUB_WORKSPACE/*/
