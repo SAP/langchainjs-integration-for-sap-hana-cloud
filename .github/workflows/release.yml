@@ -5,20 +5,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-tests:
-    if: github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/ci.yml
-    secrets:
-      HANA_DB_ADDRESS: ${{ secrets.HANA_DB_ADDRESS }}
-      HANA_DB_PORT: ${{ secrets.HANA_DB_PORT }}
-      HANA_DB_USER: ${{ secrets.HANA_DB_USER }}
-      HANA_DB_PASSWORD: ${{ secrets.HANA_DB_PASSWORD }}
-      HANA_DB_EMBEDDING_MODEL_ID: ${{ secrets.HANA_DB_EMBEDDING_MODEL_ID }}
-
   check-prerelease-dependencies:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-
-    needs: run-tests
 
     steps:
       - name: Checkout repository
@@ -37,6 +26,20 @@ jobs:
 
       - name: Run pre-release dependency check
         run: node .github/scripts/checkPrereleaseDependencies.js
+        
+  run-tests:
+    needs: 
+      - check-prerelease-dependencies
+
+    uses: ./.github/workflows/ci.yml
+    secrets:
+      HANA_DB_ADDRESS: ${{ secrets.HANA_DB_ADDRESS }}
+      HANA_DB_PORT: ${{ secrets.HANA_DB_PORT }}
+      HANA_DB_USER: ${{ secrets.HANA_DB_USER }}
+      HANA_DB_PASSWORD: ${{ secrets.HANA_DB_PASSWORD }}
+      HANA_DB_EMBEDDING_MODEL_ID: ${{ secrets.HANA_DB_EMBEDDING_MODEL_ID }}
+      HANA_DB_EMBEDDING_REMOTE_MODEL_ID: ${{ secrets.HANA_DB_EMBEDDING_REMOTE_MODEL_ID }}
+      HANA_DB_EMBEDDING_REMOTE_SOURCE: ${{ secrets.HANA_DB_EMBEDDING_REMOTE_SOURCE }}
 
   build:
     runs-on: ubuntu-latest
@@ -45,7 +48,7 @@ jobs:
       tgz_file: ${{ steps.pack_package.outputs.tgz_file }}
 
     needs:
-    - check-prerelease-dependencies
+    - run-tests
 
     steps:
       - name: Checkout repository
@@ -88,6 +91,13 @@ jobs:
 
     needs: 
       - build
+    
+    permissions:
+      contents: read
+      # id-token: write is required for the automatic generation of provenance statements and trusted publisher releasing
+      id-token: write
+    
+    environment: npmjs:@sap/hana-langchain
 
     steps:
       - name: Checkout repository
@@ -97,17 +107,16 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '20'
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install yarn
         run: npm install -g yarn
       
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
-      # - name: Publish package
-      #   run: yarn release
-      #   env:
-      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish package
+        run: npm publish --provenance --access public
 
   mark-release:
     runs-on: ubuntu-latest
