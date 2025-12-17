@@ -18,12 +18,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install yarn
-        run: npm install -g yarn
-
-      - name: Install dependencies
-        run: yarn install
-
       - name: Run pre-release dependency check
         run: node .github/scripts/checkPrereleaseDependencies.js
         
@@ -59,14 +53,14 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install yarn
-        run: npm install -g yarn
+      - name: Install pnpm
+        run: npm install -g pnpm
       
       - name: Install dependencies
-        run: yarn install
+        run: pnpm install
 
       - name: Build project
-        run: yarn build
+        run: pnpm build
       
       - name: Pack package
         id: pack_package
@@ -76,7 +70,7 @@ jobs:
           TGZ_NAME="${NAME//@/}"
           TGZ_NAME="${TGZ_NAME//\//-}"
           TGZ_FILE="${TGZ_NAME}-v${VERSION}.tgz"
-          yarn pack
+          pnpm pack
           echo "tgz_file=$TGZ_FILE" >> $GITHUB_OUTPUT
 
       - name: Upload build artifact
