@@ -29,8 +29,7 @@ npm install @sap/hana-langchain
 
 ## Vectorstore
 
->[SAP HANA Cloud Vector Engine](https://help.sap.com/docs/hana-cloud-database/sap-hana-cloud-sap-hana-database-vector-engine-guide/sap-hana-cloud-sap-hana-database-vector-engine-guide) is
-> a vector store fully integrated into the `SAP HANA Cloud` database.
+[SAP HANA Cloud Vector Engine](https://help.sap.com/docs/hana-cloud-database/sap-hana-cloud-sap-hana-database-vector-engine-guide/sap-hana-cloud-sap-hana-database-vector-engine-guide) is a vector store fully integrated into the `SAP HANA Cloud` database.
 
 <!-- MIGRAGE USAGE EXAMPLE TO LANGCHAIN DOCS -->
 See a [usage example](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/examples/vectorstores/basics.ts).
@@ -41,8 +40,7 @@ import { HanaDB } from "@sap/hana-langchain"
 
 ## Self Query Retriever
 
->[SAP HANA Cloud Vector Engine](https://help.sap.com/docs/hana-cloud-database/sap-hana-cloud-sap-hana-database-vector-engine-guide/sap-hana-cloud-sap-hana-database-vector-engine-guide)
-> also provides a Self Query Retriever implementation using the `HanaTranslator` Class.
+[SAP HANA Cloud Vector Engine](https://help.sap.com/docs/hana-cloud-database/sap-hana-cloud-sap-hana-database-vector-engine-guide/sap-hana-cloud-sap-hana-database-vector-engine-guide) also provides a Self Query Retriever implementation using the `HanaTranslator` Class.
 
 <!-- MIGRATE USAGE EXAMPLE TO LANGCHAIN DOCS -->
 See a [usage example](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/examples/self_query/basics.ts).
@@ -53,8 +51,7 @@ import { HanaTranslator } from "@sap/hana-langchain"
 
 ## Graph
 
->[SAP HANA Cloud Knowledge Graph Engine](https://help.sap.com/docs/hana-cloud-database/sap-hana-cloud-sap-hana-database-knowledge-graph-guide/sap-hana-cloud-sap-hana-database-knowledge-graph-engine-guide)
-> provides support to utilise knowledge graphs through the `HanaRdfGraph` Class.
+[SAP HANA Cloud Knowledge Graph Engine](https://help.sap.com/docs/hana-cloud-database/sap-hana-cloud-sap-hana-database-knowledge-graph-guide/sap-hana-cloud-sap-hana-database-knowledge-graph-engine-guide) provides support to utilise knowledge graphs through the `HanaRdfGraph` Class.
 
 <!-- MIGRAGE USAGE EXAMPLE TO LANGCHAIN DOCS -->
 See a [usage example](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/examples/graphs/basics.ts).
