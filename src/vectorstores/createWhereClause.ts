@@ -258,11 +258,7 @@ export class CreateWhereClause {
     }
 
     // Handle container types: only allowed for dates.
-    if (
-      theType === "object" &&
-      "type" in value &&
-      value.type === "date"
-    ) {
+    if (theType === "object" && "type" in value && value.type === "date") {
       return ["TO_DATE(?)", value.date.toString()];
     }
     if (theType === "object") {

@@ -16,6 +16,7 @@ import {
   executeStatement,
   prepareQuery,
 } from "../../src/hanautils.js";
+import { HanaTestUtils } from "./hana.test.utils.js";
 import { HanaDB, HanaDBArgs } from "../../src/index.js";
 import {
   FILTERING_DOCUMENTS,
@@ -28,11 +29,7 @@ import {
   TABLE_NAME_CUSTOM_DB,
   TEXTS,
 } from "./hana.test.constants.js";
-import {
-  executeQuery,
-  executeStatement,
-  prepareQuery,
-} from "../../src/hanautils.js";
+
 // Connection parameters factory
 const createConnectionParams = (vectorOutputType?: "Array" | "Buffer") => {
   const params: {
@@ -1138,7 +1135,7 @@ describe.each(["Array", "Buffer", undefined] as const)(
             try {
               await vectorDB.createHnswIndex();
             } catch (e) {
-              fail(`Failed to create HNSW index: ${e}`);
+              throw new Error(`Failed to create HNSW index: ${e}`);
             }
 
             const results = await vectorDB.maxMarginalRelevanceSearch(
