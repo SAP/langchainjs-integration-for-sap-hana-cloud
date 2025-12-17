@@ -124,13 +124,10 @@ jobs:
           name: dist
           path : ./dist
       
-      - name: List top-level folders
-        run: ls -d $GITHUB_WORKSPACE/*/
-      
       # --provenance enables the automatic generation of provenance statements (when using trusted publisher, this is automatically enabled and therefore optional)
       # npm version >=11.5.1 required for trusted publisher
-      # - name: Publish package
-      #   run: npm publish --provenance --access public
+      - name: Publish package
+        run: npm publish --provenance --access public
 
   mark-release:
     runs-on: ubuntu-latest
