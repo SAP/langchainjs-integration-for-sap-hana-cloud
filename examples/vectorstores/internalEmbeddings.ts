@@ -16,7 +16,7 @@ const internalEmbeddings = new HanaInternalEmbeddings({
 /*
 const internalEmbeddings = new HanaInternalEmbeddings({
   internalEmbeddingModelId:
-    process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID || "REMOTE_MODEL_ID",
+    process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID || "YOUR_EMBEDDING_MODEL_ID",
   remoteSource:
     process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE || "YOUR_REMOTE_SOURCE_NAME",
 });
