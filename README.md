@@ -1,5 +1,14 @@
 [![REUSE status](https://api.reuse.software/badge/github.com/SAP/langchainjs-integration-for-sap-hana-cloud)](https://api.reuse.software/info/github.com/SAP/langchainjs-integration-for-sap-hana-cloud)
 
+> [!WARNING]
+>
+> ### Deprecated Version Notice
+>
+>You are currently reading the documentation for version 0.3.x, which is no longer the latest release.
+>
+> Latest version:  
+> [https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/tree/main](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/tree/main)
+
 # langchainjs-integration-for-sap-hana-cloud
 
 ## About this project
