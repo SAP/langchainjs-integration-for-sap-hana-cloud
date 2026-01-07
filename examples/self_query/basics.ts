@@ -128,3 +128,6 @@ for (const doc of retreivedDocs){
 --------------------------------------------------------------------------------
 Second {"name":"bob","is_active":false,"id":2,"height":5.7}
  */
+
+// Disconnect from SAP HANA after the operations
+client.disconnect();

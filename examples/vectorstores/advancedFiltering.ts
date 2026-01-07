@@ -179,6 +179,22 @@ printFilterResult(
 /* Filter: {"name":{"$contains":"bo"}}
 <empty result> */
 
+advancedFilter = {"name": {"$contains": "Adam Johnson"}}
+console.log(`Filter: ${JSON.stringify(advancedFilter)}`);
+printFilterResult(
+  await vectorStore.similaritySearch("just testing", 5, advancedFilter)
+);
+/* Filter: {'name': {'$contains': 'Adam Johnson'}}
+<empty result> */
+
+advancedFilter = {"name": {"$contains": "Adam Smith"}}
+console.log(`Filter: ${JSON.stringify(advancedFilter)}`);
+printFilterResult(
+  await vectorStore.similaritySearch("just testing", 5, advancedFilter)
+);
+/* Filter: {'name': {'$contains': 'Adam Smith'}}
+{'name': 'Adam Smith', 'is_active': True, 'id': 1, 'height': 10.0} */
+
 // Combined filtering with $or
 advancedFilter = { $or: [{ id: 1 }, { name: "Bob Johnson" }] };
 console.log(`Filter: ${JSON.stringify(advancedFilter)}`);
@@ -228,5 +244,5 @@ printFilterResult(
 { name: 'Adam Smith', is_active: true, id: 1, height: 10 }
 { name: 'Bob Johnson', is_active: false, id: 2, height: 5.7 } */
 
-// Disconnect from SAP HANA aft er the operations
+// Disconnect from SAP HANA after the operations
 client.disconnect();

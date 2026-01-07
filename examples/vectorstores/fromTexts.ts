@@ -12,7 +12,7 @@ const connectionParams = {
   password: process.env.HANA_DB_PASSWORD,
 };
 const client = hanaClient.createConnection(connectionParams);
-// connet to hanaDB
+// connect to hanaDB
 await new Promise<void>((resolve, reject) => {
   client.connect((err: Error) => {
     // Use arrow function here
@@ -52,4 +52,6 @@ console.log(response);
     { pageContent: 'hello nice world', metadata: { id: 3, name: '3' } }
   ]
 */
+
+// Disconnect from SAP HANA after the operations
 client.disconnect();
