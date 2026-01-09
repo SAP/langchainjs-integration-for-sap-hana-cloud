@@ -15,7 +15,7 @@ const connectionParams = {
   password: process.env.HANA_DB_PASSWORD,
 };
 const client = hanaClient.createConnection(connectionParams);
-// connet to hanaDB
+// connect to hanaDB
 await new Promise<void>((resolve, reject) => {
   client.connect((err: Error) => {
     // Use arrow function here
@@ -36,6 +36,20 @@ const args: HanaDBArgs = {
   tableName: "testBasics",
 };
 
+// Create a LangChain VectorStore interface for the HANA database and specify the table (collection) to use in args.
+const vectorStore = new HanaDB(embeddings, args);
+// need to initialize once an instance is created.
+await vectorStore.initialize();
+// Delete already existing documents from the table
+await vectorStore.delete({ filter: {} });
+
+// Add simple documents
+const simpleDocs = [
+  new Document({ pageContent: "Hello world" }),
+  new Document({ pageContent: "Other docs"})
+];
+await vectorStore.addDocuments(simpleDocs);
+
 // Add documents with metadata.
 const docs: Document[] = [
   {
@@ -47,14 +61,8 @@ const docs: Document[] = [
     metadata: { start: 200, end: 250, docName: "bar.txt", quality: "good" },
   },
 ];
-
-// Create a LangChain VectorStore interface for the HANA database and specify the table (collection) to use in args.
-const vectorStore = new HanaDB(embeddings, args);
-// need to initialize once an instance is created.
-await vectorStore.initialize();
-// Delete already existing documents from the table
-await vectorStore.delete({ filter: {} });
 await vectorStore.addDocuments(docs);
+
 // Query documents with specific metadata.
 const filterMeta = { quality: "bad" };
 const query = "foobar";
@@ -80,4 +88,6 @@ console.log(resultsAfterFilter);
 /*
     []
 */
+
+// Disconnect from SAP HANA after the operations
 client.disconnect();

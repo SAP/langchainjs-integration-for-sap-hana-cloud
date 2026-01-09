@@ -4,7 +4,7 @@ import {
   HanaDBArgs,
 } from "@sap/hana-langchain";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import { TextLoader } from "langchain/document_loaders/fs/text";
+import { TextLoader } from "@langchain/classic/document_loaders/fs/text";
 import { CharacterTextSplitter } from "@langchain/textsplitters";
 
 const connectionParams = {
@@ -14,7 +14,7 @@ const connectionParams = {
   password: process.env.HANA_DB_PASSWORD,
 };
 const client = hanaClient.createConnection(connectionParams);
-// connet to hanaDB
+// connect to hanaDB
 await new Promise<void>((resolve, reject) => {
   client.connect((err: Error) => {
     // Use arrow function here
@@ -47,7 +47,7 @@ await vectorStore.delete({ filter: {} });
 // add the loaded document chunks
 await vectorStore.addDocuments(documents);
 
-// similarity search (default:“Cosine Similarity”, options:["euclidean", "cosine"])
+// similarity search (default:“Cosine Similarity”)
 const query = "What did the president say about Ketanji Brown Jackson";
 const docs = await vectorStore.similaritySearch(query, 2);
 docs.forEach((doc) => {
@@ -73,9 +73,10 @@ docs.forEach((doc) => {
 const argsL2d: HanaDBArgs = {
   connection: client,
   tableName: "test_fromDocs",
-  distanceStrategy: "euclidean",
+  distanceStrategy: "EUCLIDEAN",
 };
 const vectorStoreL2d = new HanaDB(embeddings, argsL2d);
+await vectorStoreL2d.initialize();
 const docsL2d = await vectorStoreL2d.similaritySearch(query, 2);
 docsL2d.forEach((docsL2d) => {
   console.log("-".repeat(80));
@@ -109,4 +110,6 @@ docsMMR.forEach((docsMMR) => {
 
   Let each of us here tonight in this Chamber send an unmistakable signal to Ukraine and to the world.
 */
+
+// Disconnect from SAP HANA after the operations
 client.disconnect();

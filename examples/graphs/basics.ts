@@ -85,3 +85,6 @@ P2,name,Bert
 P2,show,Sesame Street
 P2,http://www.w3.org/1999/02/22-rdf-syntax-ns#type,Puppet
 */
+
+// Disconnect from SAP HANA after the operations
+client.disconnect();

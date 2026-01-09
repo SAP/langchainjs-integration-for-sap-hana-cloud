@@ -81,7 +81,7 @@ writer.end((error, result) => {
 });
 /*
 Graph Schema in Turtle format:
- @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
 @prefix owl: <http://www.w3.org/2002/07/owl#>.
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
@@ -198,3 +198,6 @@ http://www.wikidata.org/entity/Q211415,Edward James Olmos
 
 The actors who acted in Blade Runner include Morgan Paull, William Sanderson, James Hong, Brion James, M. Emmet Walsh, Joe Turkel, Daryl Hannah, Joanna Cassidy, Rutger Hauer, Hy Pyke, Sean Young, and Edward James Olmos.
 */
+
+// Disconnect from SAP HANA after the operations
+client.disconnect();
