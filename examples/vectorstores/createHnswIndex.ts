@@ -61,7 +61,7 @@ await vectorStoreL2.createHnswIndex({
   efConstruction: 150, // Min number of candidates during the search (valid range: 1 to 100000)
 });
 
-// Query text for similarity search
+// Query text for MMR search
 const query = "What did the president say about Ketanji Brown Jackson";
 
 // Use L2 index to perform MMR
@@ -69,11 +69,13 @@ const docsL2HNSW = await vectorStoreL2.maxMarginalRelevanceSearch(query, {
   k: 2,
   fetchK: 20,
 });
+console.log("Max Marginal Relevance search results:");
 docsL2HNSW.forEach((doc) => {
   console.log("-".repeat(80));
   console.log(doc.pageContent);
 });
 /*
+Max Marginal Relevance search results:
 --------------------------------------------------------------------------------
 One of the most serious constitutional responsibilities a President has is nominating someone to serve on the United States Supreme Court.
 
