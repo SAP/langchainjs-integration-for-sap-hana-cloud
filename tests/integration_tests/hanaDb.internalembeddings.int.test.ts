@@ -16,6 +16,7 @@ import {
   DOCUMENTS,
   METADATAS,
   TABLE_NAME,
+  TABLE_NAME_CUSTOM_DB,
   TEXTS,
 } from "./hana.test.constants.js";
 import { HanaTestUtils } from "./hana.test.utils.js";

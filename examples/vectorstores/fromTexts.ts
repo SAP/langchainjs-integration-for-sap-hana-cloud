@@ -31,6 +31,7 @@ const args: HanaDBArgs = {
 };
 // This function will create a table "test_fromTexts" if not exist, if exists,
 // then the value will be appended to the table.
+
 const vectorStore = await HanaDB.fromTexts(
   ["Bye bye", "Hello world", "hello nice world"],
   [
@@ -41,6 +42,21 @@ const vectorStore = await HanaDB.fromTexts(
   embeddings,
   args
 );
+
+// A useMapMerge flag can be supplied in the options for faster insertion
+// mapMerge only works with internalEmbeddings
+// const vectorStore = await HanaDB.fromTexts(
+//   ["Bye bye", "Hello world", "hello nice world"],
+//   [
+//     { id: 2, name: "2" },
+//     { id: 1, name: "1" },
+//     { id: 3, name: "3" },
+//   ],
+//   embeddings,
+//   args,
+//   { useMapMerge: true }
+// );
+
 
 const response = await vectorStore.similaritySearch("hello world", 2);
 
