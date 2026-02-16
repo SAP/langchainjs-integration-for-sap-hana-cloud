@@ -51,7 +51,7 @@ const simpleDocs = [
 await vectorStore.addDocuments(simpleDocs);
 
 // A useMapMerge flag can be supplied in the options for faster insertion
-// mapMerge only works with internalEmbeddings
+// map merge only works with internal Embeddings
 // await vectorStore.addDocuments(simpleDocs, { useMapMerge: true });
 
 // Add documents with metadata.
