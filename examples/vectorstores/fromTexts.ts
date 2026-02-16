@@ -44,7 +44,7 @@ const vectorStore = await HanaDB.fromTexts(
 );
 
 // A useMapMerge flag can be supplied in the options for faster insertion
-// mapMerge only works with internalEmbeddings
+// map merge only works with internal Embeddings
 // const vectorStore = await HanaDB.fromTexts(
 //   ["Bye bye", "Hello world", "hello nice world"],
 //   [
