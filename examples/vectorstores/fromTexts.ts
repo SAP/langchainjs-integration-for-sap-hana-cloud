@@ -31,7 +31,6 @@ const args: HanaDBArgs = {
 };
 // This function will create a table "test_fromTexts" if not exist, if exists,
 // then the value will be appended to the table.
-
 const vectorStore = await HanaDB.fromTexts(
   ["Bye bye", "Hello world", "hello nice world"],
   [
@@ -56,7 +55,6 @@ const vectorStore = await HanaDB.fromTexts(
 //   args,
 //   { useMapMerge: true }
 // );
-
 
 const response = await vectorStore.similaritySearch("hello world", 2);
 
