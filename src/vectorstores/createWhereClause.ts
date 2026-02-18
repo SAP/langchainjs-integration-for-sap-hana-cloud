@@ -7,6 +7,7 @@ export type ComparisonRValue =
   | number
   | boolean
   | DateValue
+  | null
   | Array<ComparisonRValue>;
 
 type Comparator =
@@ -29,7 +30,7 @@ type LogicalFilter = {
   [K in LogicalOperator]?: Filter[];
 };
 type PropertyFilter = {
-  [property: string]: string | number | boolean | Date | ComparatorFilter;
+  [property: string]: string | number | boolean | Date | null | ComparatorFilter;
 };
 
 export type Filter = PropertyFilter | LogicalFilter;
@@ -38,6 +39,15 @@ interface DateValue {
   type: "date";
   date: string | Date;
 }
+
+const isDateValue = (value: unknown): value is DateValue => {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    (value as DateValue).type === "date"
+  );
+};
 
 const COMPARISONS_TO_SQL: Record<string, string> = {
   $eq: "=",
@@ -133,13 +143,10 @@ export class CreateWhereClause {
         // Generic filter objects may only have logical operators.
         [sqlClause, queryParams] = this.sqlSerializeLogicalOperation(
           key as LogicalOperator,
-          value as Filter[]
+          value
         );
       } else {
-        if (typeof value === "number" && !Number.isInteger(value)) {
-          throw new Error(`Unsupported filter value type: ${typeof value}`);
-        }
-        if (typeof value === "object" && !("type" in value)) {
+        if (value !== null && typeof value === "object" && !("type" in value)) {
           if (Object.keys(value).length !== 1) {
             throw new Error(
               `Expecting a single entry 'operator: operands', but got ${JSON.stringify(
@@ -154,10 +161,15 @@ export class CreateWhereClause {
             operands
           );
         } else {
-          const [placeholder, paramValue] =
-            CreateWhereClause.determineTypedSqlPlaceholder(value);
-          sqlClause = `${this.createSelector(key)} = ${placeholder}`;
-          queryParams = [paramValue];
+          if (value === null) {
+            sqlClause = `${this.createSelector(key)} IS NULL`;
+            queryParams = [];
+          } else {
+            const [placeholder, paramValue] =
+              CreateWhereClause.determineTypedSqlPlaceholder(value);
+            sqlClause = `${this.createSelector(key)} = ${placeholder}`;
+            queryParams = [paramValue];
+          }
         }
       }
       statements.push(sqlClause);
@@ -168,6 +180,115 @@ export class CreateWhereClause {
       CreateWhereClause.sqlSerializeLogicalClauses("AND", statements),
       parameters,
     ];
+  }
+
+  private validateOperatorWithOperands(operator: string, operands: Filter[]| ComparisonRValue): void {
+    if (operator in LOGICAL_OPERATORS_TO_SQL) {
+      if (!Array.isArray(operands) || operands.length < 2) {
+        throw new Error(
+          `Expected an array of at least two operands for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+        );
+      }
+    } else if (operator in COLUMN_OPERATORS) {
+      if (operator === CONTAINS_OPERATOR) {
+        if (typeof operands !== "string" || !operands) {
+          throw new Error(
+            `Expected a non-empty string operand for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+          );
+        }
+      } else if (operator === LIKE_OPERATOR) {
+        if (typeof operands !== "string") {
+          throw new Error(
+            `Expected a string operand for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+          );
+        }
+      } else if (operator === BETWEEN_OPERATOR) {
+        if (!Array.isArray(operands) || operands.length !== 2) {
+          throw new Error(
+            `Expected an array of two operands for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+          );
+        }
+        if (typeof operands[0] !== typeof operands[1]) {
+          throw new Error(
+            `Expected operands of the same type for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+          );
+        }
+        if (
+          typeof operands[0] === "boolean" ||
+          !(
+            typeof operands[0] === "number" ||
+            typeof operands[0] === "string" ||
+            isDateValue(operands[0])
+          )
+        ) {
+          throw new Error(
+            `Expected an array of (number, string, date) for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+          );
+        }
+      } else if (operator in IN_OPERATORS_TO_SQL) {
+        if (!Array.isArray(operands) || operands.length === 0) {
+          throw new Error(
+            `Expected a non-empty array of operands for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+          );
+        }
+        const checkTypes = new Set(operands.map((op) => typeof op));
+        if (checkTypes.size > 1) {
+          throw new Error(
+            `Expected operands of the same type for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+          );
+        }
+        const firstType = typeof operands[0];
+        if (
+          !(
+            firstType === "number" ||
+            firstType === "string" ||
+            firstType === "boolean" ||
+            operands.every((op) => isDateValue(op))
+          )
+        ) {
+          throw new Error(
+            `Expected an array of (number, string, boolean, date) for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+          );
+        }
+      }
+
+      if (operator === "$eq" || operator === "$ne") {
+        if (
+          !(
+            typeof operands === "number" ||
+            typeof operands === "string" ||
+            typeof operands === "boolean" ||
+            isDateValue(operands) ||
+            operands === null
+          )
+        ) {
+          throw new Error(
+            `Expected a (number, string, boolean, date, null) for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+          );
+        }
+      }
+      if (
+        operator === "$gt" ||
+        operator === "$gte" ||
+        operator === "$lt" ||
+        operator === "$lte"
+      ) {
+        if (
+          typeof operands === "boolean" ||
+          !(
+            typeof operands === "number" ||
+            typeof operands === "string" ||
+            isDateValue(operands)
+          )
+        ) {
+          throw new Error(
+            `Expected a (number, string, date) for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+          );
+        }
+      }
+    } else {
+      throw new Error(`Unexpected operator: operator=${operator}`);
+    }
   }
 
   private sqlSerializeColumnOperation(
@@ -183,6 +304,8 @@ export class CreateWhereClause {
       throw new Error(`${operator} is not a valid column operator.`);
     }
 
+    this.validateOperatorWithOperands(operator, operands);
+
     const sqlOperator = COLUMN_OPERATORS[operator];
     const selector = this.createSelector(column);
 
@@ -194,11 +317,6 @@ export class CreateWhereClause {
     }
 
     if (operator === BETWEEN_OPERATOR) {
-      if (!Array.isArray(operands) || operands.length !== 2) {
-        throw new Error(
-          `Expected 2 operands for BETWEEN, but got ${JSON.stringify(operands)}`
-        );
-      }
       const [fromPlaceholder, fromValue] =
         CreateWhereClause.determineTypedSqlPlaceholder(operands[0]);
       const [toPlaceholder, toValue] =
@@ -210,14 +328,7 @@ export class CreateWhereClause {
     }
 
     if (operator in IN_OPERATORS_TO_SQL) {
-      if (!Array.isArray(operands)) {
-        throw new Error(
-          `Expected an array for IN operator, but got ${JSON.stringify(
-            operands
-          )}`
-        );
-      }
-      const placeholderValueList = operands.map((item) =>
+      const placeholderValueList = (operands as Array<ComparisonRValue>).map((item) =>
         CreateWhereClause.determineTypedSqlPlaceholder(item)
       );
       const placeholders = placeholderValueList
@@ -228,6 +339,16 @@ export class CreateWhereClause {
         sqlOperator as string
       } (${placeholders})`;
       return [statement, values];
+    }
+
+    // Allow null checks for equality operators
+    if(operator === "$eq" && operands === null) {
+      const statement = `${selector} IS NULL`;
+      return [statement, []];
+    }
+    if(operator === "$ne" && operands === null) {
+      const statement = `${selector} IS NOT NULL`;
+      return [statement, []];
     }
 
     // Default behavior for single value operators (e.g., =, >, <).
@@ -251,22 +372,20 @@ export class CreateWhereClause {
     if (theType === "number") {
       return ["TO_DOUBLE(?)", value.toString()];
     }
-
-    // Do not accept empty values
-    if (!value) {
-      throw new Error("No operands provided");
+    if (theType === "string") {
+      return ["TO_NVARCHAR(?)", value];
     }
 
     // Handle container types: only allowed for dates.
-    if (theType === "object" && "type" in value && value.type === "date") {
+    if (isDateValue(value)) {
       return ["TO_DATE(?)", value.date.toString()];
     }
     if (theType === "object") {
       throw new Error(`Cannot handle value ${JSON.stringify(value)}`);
     }
 
-    console.warn(`Using plain SQL placeholder '?' for string value: ${value}`);
-    return ["?", value];
+    // if we reach this point, the value type is not supported.
+    throw new Error(`Unsupported value type: ${theType} for value ${JSON.stringify(value)}`);
   }
 
   private static sqlSerializeLogicalClauses(
@@ -297,6 +416,7 @@ export class CreateWhereClause {
     operator: LogicalOperator,
     operands: Filter[]
   ): [string, string[]] {
+    this.validateOperatorWithOperands(operator, operands);
     const sqlClauses: string[] = [];
     const queryParams: string[] = [];
 

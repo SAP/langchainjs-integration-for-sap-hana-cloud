@@ -6,12 +6,23 @@ import {
 } from "vitest";
 import { HanaDB } from "../../src/index.js";
 import { CreateWhereClause } from "../../src/vectorstores/createWhereClause.js";
-import { FILTERING_TEST_CASES } from "../integration_tests/fixtures/hanaDb.fixtures.js";
+import { ERROR_FILTERING_TEST_CASES, FILTERING_TEST_CASES } from "../integration_tests/fixtures/hanaDb.fixtures.js";
 
 const dummyHanaDB = {
   getMetadataColumn: vi.fn().mockReturnValue("VEC_META"),
   getSpecificMetadataColumns: vi.fn().mockReturnValue([]),
 } as unknown as HanaDB;
+
+describe("errorneous filter tests", () => {
+  test.each(ERROR_FILTERING_TEST_CASES)(
+    "filter: %o, expectedError: %s",
+    (filter, expectedError) => {
+      expect(() => new CreateWhereClause(dummyHanaDB).build(filter)).toThrow(
+        expectedError
+      );
+    }
+  );
+});
 
 describe("where clause creation tests", () => {
   test("test create where clause with empty filter", () => {
@@ -24,7 +35,7 @@ describe("where clause creation tests", () => {
 
   describe("valid filters", () => {
     test.each(FILTERING_TEST_CASES)(
-      "filter: %o, expectedWhereClause: %s, expectedParams: %o",
+      "filter: %O, matchingIds: %O, expectedWhereClause: %s, expectedParams: %O",
       (filter, _matchingIds, expectedWhereClause, expectedParams) => {
         const [whereClause, parameters] = new CreateWhereClause(
           dummyHanaDB

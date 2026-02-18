@@ -21,6 +21,7 @@ import { HanaDB, HanaDBArgs } from "../../src/index.js";
 import {
   FILTERING_DOCUMENTS,
   FILTERING_TEST_CASES,
+  ERROR_FILTERING_TEST_CASES,
 } from "./fixtures/hanaDb.fixtures.js";
 import {
   DOCUMENTS,
@@ -405,6 +406,20 @@ describe.each(["Array", "Buffer", undefined] as const)(
             afterEach(async () => {
               await vectorDBTeardown();
             });
+          });
+
+          describe("hanavector metadata filtering error tests", () => {
+            test.each(ERROR_FILTERING_TEST_CASES)(
+              "filter: %O, expectedError: %s",
+              async (testFilter, expectedError) => {
+                const vectorDB = await vectorDBSetup(vectorColumnType);
+                await expect(
+                  vectorDB.similaritySearch(TEXTS[0], 3, testFilter)
+                ).rejects.toThrow(expectedError);
+
+                await vectorDBTeardown();
+              }
+            );
           });
 
           describe("specific metadata columns test", () => {
@@ -977,18 +992,6 @@ describe.each(["Array", "Buffer", undefined] as const)(
             expect(results).toHaveLength(1);
             expect(results[0].pageContent).toBe(TEXTS[1]);
 
-            await vectorDBTeardown();
-          });
-
-          test("similarity search with metadata filter (invalid type)", async () => {
-            const vectorDB = await vectorDBSetup(vectorColumnType);
-            await vectorDB.addDocuments(DOCUMENTS);
-
-            await expect(
-              vectorDB.similaritySearch(TEXTS[0], 3, {
-                wrong_type: 0.1,
-              })
-            ).rejects.toThrow();
             await vectorDBTeardown();
           });
 
