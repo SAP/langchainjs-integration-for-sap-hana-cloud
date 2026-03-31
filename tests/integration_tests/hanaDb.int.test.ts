@@ -385,7 +385,7 @@ describe.each(["Array", "Buffer", undefined] as const)(
             });
 
             test.each(FILTERING_TEST_CASES)(
-              "filter: %o, matchingIds: %o",
+              "filter: $0, matchingIds: $1",
               async (
                 testFilter,
                 matchingIds,
@@ -410,7 +410,7 @@ describe.each(["Array", "Buffer", undefined] as const)(
 
           describe("hanavector metadata filtering error tests", () => {
             test.each(ERROR_FILTERING_TEST_CASES)(
-              "filter: %O, expectedError: %s",
+              "filter: $0, expectedError: $1",
               async (testFilter, expectedError) => {
                 const vectorDB = await vectorDBSetup(vectorColumnType);
                 await expect(

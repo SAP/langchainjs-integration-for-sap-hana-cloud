@@ -344,6 +344,80 @@ export const TYPE_5_FILTERING_TEST_CASES: FilteringTestCase[] = [
   ],
 ];
 
+export const TYPE_6_DATE_FILTERING_TEST_CASES: FilteringTestCase[] = [
+  // These involve date filtering with TO_DATE
+  // Implicit $eq with date
+  [
+    { date: new Date("2021-01-01") },
+    [1, 3], // adam and jane have date 2021-01-01
+    "WHERE JSON_VALUE(VEC_META, '$.date') = TO_DATE(?)",
+    ["2021-01-01"],
+  ],
+  // Explicit $eq with date
+  [
+    { date: { $eq: new Date("2021-01-02") } },
+    [2], // bob has date 2021-01-02
+    "WHERE JSON_VALUE(VEC_META, '$.date') = TO_DATE(?)",
+    ["2021-01-02"],
+  ],
+  // $ne with date
+  [
+    { date: { $ne: new Date("2021-01-01") } },
+    [2], // bob is the only one with a different date
+    "WHERE JSON_VALUE(VEC_META, '$.date') <> TO_DATE(?)",
+    ["2021-01-01"],
+  ],
+  // $gt with date
+  [
+    { date: { $gt: new Date("2021-01-01") } },
+    [2], // bob has date 2021-01-02
+    "WHERE JSON_VALUE(VEC_META, '$.date') > TO_DATE(?)",
+    ["2021-01-01"],
+  ],
+  // $gte with date
+  [
+    { date: { $gte: new Date("2021-01-01") } },
+    [1, 2, 3], // all documents
+    "WHERE JSON_VALUE(VEC_META, '$.date') >= TO_DATE(?)",
+    ["2021-01-01"],
+  ],
+  // $lt with date
+  [
+    { date: { $lt: new Date("2021-01-02") } },
+    [1, 3], // adam and jane
+    "WHERE JSON_VALUE(VEC_META, '$.date') < TO_DATE(?)",
+    ["2021-01-02"],
+  ],
+  // $lte with date
+  [
+    { date: { $lte: new Date("2021-01-01") } },
+    [1, 3], // adam and jane
+    "WHERE JSON_VALUE(VEC_META, '$.date') <= TO_DATE(?)",
+    ["2021-01-01"],
+  ],
+  // $between with dates
+  [
+    { date: { $between: [new Date("2021-01-01"), new Date("2021-01-02")] } },
+    [1, 2, 3], // all documents
+    "WHERE JSON_VALUE(VEC_META, '$.date') BETWEEN TO_DATE(?) AND TO_DATE(?)",
+    ["2021-01-01", "2021-01-02"],
+  ],
+  // $in with dates
+  [
+    {
+      date: {
+        $in: [
+          new Date("2021-01-01"),
+          new Date("2021-01-03"), // date that doesn't exist
+        ],
+      },
+    },
+    [1, 3], // adam and jane
+    "WHERE JSON_VALUE(VEC_META, '$.date') IN (TO_DATE(?), TO_DATE(?))",
+    ["2021-01-01", "2021-01-03"],
+  ],
+];
+
 export const FILTERING_TEST_CASES: FilteringTestCase[] = [
   ...TYPE_1_FILTERING_TEST_CASES,
   ...TYPE_2_FILTERING_TEST_CASES,
@@ -351,6 +425,7 @@ export const FILTERING_TEST_CASES: FilteringTestCase[] = [
   ...TYPE_4_FILTERING_TEST_CASES,
   ...TYPE_4B_FILTERING_TEST_CASES,
   ...TYPE_5_FILTERING_TEST_CASES,
+  ...TYPE_6_DATE_FILTERING_TEST_CASES,
 ];
 
 export const ERROR_FILTERING_TEST_CASES: ErrorFilteringTestCase[] = [
@@ -372,71 +447,76 @@ export const ERROR_FILTERING_TEST_CASES: ErrorFilteringTestCase[] = [
   // contains operator
   [
     { tags: { $contains: "" } } ,
-    'Expected a non-empty string operand for operator=$contains, but got operands=""',
+    'Operator $contains expects a non-empty string operand, but got ""',
   ],
   [
     { tags: { $contains: 5 } } ,
-    "Expected a non-empty string operand for operator=$contains, but got operands=5",
+    "Operator $contains expects a non-empty string operand, but got 5",
   ],
   // like operator
   [
     { name: { $like: false } } ,
-    "Expected a string operand for operator=$like, but got operands=false",
+    "Operator $like expects a string operand, but got false",
   ],
   // between operator
   [
     { id: { $between: [1] } } ,
-    "Expected an array of two operands for operator=$between, but got operands=[1]",
+    "Operator $between expects 2 operands, but got [1]",
   ],
   [
     { id: { $between: [1, "2"] } } ,
-    'Expected operands of the same type for operator=$between, but got operands=[1,"2"]',
+    'Operator $between expects operands of the same type, but got [1,"2"]',
+  ],
+  [
+    // Typescript infers isInteger(2.0) as true, therefore we need a non-zero decimal part
+    { id: { $between: [1, 2.1] } },
+    "Operator $between expects operands of the same type, but got [1,2.1]",
   ],
   [
     { id: { $between: [false, true] } } ,
-    "Expected an array of (number, string, date) for operator=$between, but got operands=[false,true]",
+    "Operator $between expects operand types (int, float, str, date), but got [false,true]",
   ],
   // in operators
   [
     { name: { $in: [] } } ,
-    "Expected a non-empty array of operands for operator=$in, but got operands=[]",
+    "Operator $in expects at least 1 operand",
   ],
   [
     { name: { $in: ["adam", 1] } } ,
-    'Expected operands of the same type for operator=$in, but got operands=["adam",1]',
+    'Operator $in expects operands of the same type, but got ["adam",1]',
   ],
   [
     { name: { $nin: [] } } ,
-    "Expected a non-empty array of operands for operator=$nin, but got operands=[]",
+    "Operator $nin expects at least 1 operand",
   ],
   [
     { name: { $nin: ["adam", 1] } } ,
-    'Expected operands of the same type for operator=$nin, but got operands=["adam",1]',
+    'Operator $nin expects operands of the same type, but got ["adam",1]',
   ],
   // eq and ne operators
   [
     { name: { $eq: ["unexpected", "list"] } } ,
-    'Expected a (number, string, boolean, date, null) for operator=$eq, but got operands=["unexpected","list"]',
+    'Operator $eq expects a single operand, but got object: ["unexpected","list"]',
   ],
   [
     { name: { $ne: ["unexpected", "list"] } } ,
-    'Expected a (number, string, boolean, date, null) for operator=$ne, but got operands=["unexpected","list"]',
+    'Operator $ne expects a single operand, but got object: ["unexpected","list"]',
   ],
   // gt, gte, lt, lte operators
   [
     { name: { $gt: ["unexpected", "list"] } } ,
-    'Expected a (number, string, date) for operator=$gt, but got operands=["unexpected","list"]',
+    'Operator $gt expects a single operand, but got object: ["unexpected","list"]',
   ],
   [
     { name: { $gte: false } } ,
-    "Expected a (number, string, date) for operator=$gte, but got operands=false",
+    "Operator $gte expects operand of type (int, float, str, date), but got false",
   ],
   [
     { name: { $lt: ["unexpected", "list"] } } ,
-    'Expected a (number, string, date) for operator=$lt, but got operands=["unexpected","list"]',
+    'Operator $lt expects a single operand, but got object: ["unexpected","list"]',
   ],
   [
     { name: { $lte: true } } ,
-    "Expected a (number, string, date) for operator=$lte, but got operands=true",
+    "Operator $lte expects operand of type (int, float, str, date), but got true",
   ],
 ];

@@ -15,7 +15,7 @@ const dummyHanaDB = {
 
 describe("errorneous filter tests", () => {
   test.each(ERROR_FILTERING_TEST_CASES)(
-    "filter: %o, expectedError: %s",
+    "filter: $0, expectedError: $1",
     (filter, expectedError) => {
       expect(() => new CreateWhereClause(dummyHanaDB).build(filter)).toThrow(
         expectedError
@@ -35,7 +35,7 @@ describe("where clause creation tests", () => {
 
   describe("valid filters", () => {
     test.each(FILTERING_TEST_CASES)(
-      "filter: %O, matchingIds: %O, expectedWhereClause: %s, expectedParams: %O",
+      "filter: $0, expectedWhereClause: $2",
       (filter, _matchingIds, expectedWhereClause, expectedParams) => {
         const [whereClause, parameters] = new CreateWhereClause(
           dummyHanaDB
