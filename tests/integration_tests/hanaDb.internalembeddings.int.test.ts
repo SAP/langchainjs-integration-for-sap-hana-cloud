@@ -189,20 +189,49 @@ describe.each(["Array", "Buffer", undefined] as const)(
         await HanaTestUtils.dropTable(config.client, TABLE_NAME);
       }
 
+      async function customVectorDBTeardown() {
+        await HanaTestUtils.dropTable(config.client, TABLE_NAME_CUSTOM_DB);
+      }
+
       describe.each(["REAL_VECTOR", "HALF_VECTOR"])(
         "tests with all vector column types",
         (vectorColumnType) => {
-          test("hanavector add documents", async () => {
-            const vectorDB = await vectorDBSetup(vectorColumnType);
-            await vectorDB.addDocuments(DOCUMENTS);
-            const countResult = await executeQuery(
-              config.client,
-              `SELECT COUNT(*) AS COUNT FROM ${TABLE_NAME}`
-            );
-            expect(countResult[0]?.COUNT ?? -1).toBe(DOCUMENTS.length);
+          describe.each([false, true])(
+            "tests with map merge = %s",
+            (useMapMerge) => {
+              test("hanavector add documents", async () => {
+                const vectorDB = await vectorDBSetup(vectorColumnType);
+                await vectorDB.addDocuments(DOCUMENTS, { useMapMerge });
+                const countResult = await executeQuery(
+                  config.client,
+                  `SELECT COUNT(*) AS COUNT FROM ${TABLE_NAME}`
+                );
+                expect(countResult[0]?.COUNT ?? -1).toBe(DOCUMENTS.length);
 
-            await vectorDBTeardown();
-          });
+                await vectorDBTeardown();
+              });
+
+              test("hanavector from texts", async () => {
+                const vectorDB = await HanaDB.fromTexts(
+                  TEXTS,
+                  METADATAS,
+                  config.embeddings,
+                  {
+                    connection: config.client,
+                    tableName: TABLE_NAME_CUSTOM_DB,
+                  },
+                  { useMapMerge }
+                );
+                expect(vectorDB).toBeInstanceOf(HanaDB);
+                const countResult = await executeQuery(
+                  config.client,
+                  `SELECT COUNT(*) AS COUNT FROM ${TABLE_NAME_CUSTOM_DB}`
+                );
+                expect(countResult[0]?.COUNT ?? -1).toBe(TEXTS.length);
+                await customVectorDBTeardown();
+              });
+            }
+          );
 
           describe("similarity search tests", () => {
             describe.each(baseValidRerankConfigs)(

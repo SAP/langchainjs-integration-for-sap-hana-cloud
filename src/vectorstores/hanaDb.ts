@@ -1086,10 +1086,10 @@ export class HanaDB extends VectorStore {
     const client = this.connection;
     let vectors;
 
-    const tempTableName = `${this.tableName}_TEMP`;
+    const tempTableName = `#${this.tableName}_TEMP`;
     const createTempTableSql = `
       CREATE LOCAL TEMPORARY COLUMN TABLE ${tempTableName} (
-              ID INT PRIMARY KEY,
+              ID INT,
               "VEC_TEXT" NCLOB,
               "VEC_VECTOR" ${this.vectorColumnType}
       )
@@ -1143,9 +1143,9 @@ export class HanaDB extends VectorStore {
         const callMapMergeSql = `
         DO()
         BEGIN
-            dat = SELECT "ID", "VEC_TEXT", "VEC_VECTOR" FROM "${tempTableName}";
-            o_res = MAP_MERGE(:dat, "${tempFuncName}"(:dat."ID", :dat."VEC_TEXT"));
-            MERGE INTO "${tempTableName}" AS dat
+            dat = SELECT "ID", "VEC_TEXT", "VEC_VECTOR" FROM ${tempTableName};
+            o_res = MAP_MERGE(:dat, ${tempFuncName}(:dat."ID", :dat."VEC_TEXT"));
+            MERGE INTO ${tempTableName} AS dat
             USING :o_res AS upd
             ON dat."ID" = upd."ID"
             WHEN MATCHED THEN
@@ -1155,7 +1155,7 @@ export class HanaDB extends VectorStore {
         await executeQuery(client, callMapMergeSql);
 
         const fetchEmbeddingsSql = `
-        SELECT VEC_VECTOR FROM "${tempTableName}"
+        SELECT VEC_VECTOR FROM ${tempTableName}
         `;
         const rows = await executeQuery(client, fetchEmbeddingsSql);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1163,10 +1163,10 @@ export class HanaDB extends VectorStore {
           this.handleVectorOutputType(row.VEC_VECTOR)
         );
       } finally {
-        await executeQuery(client, `DROP FUNCTION "${tempFuncName}"`);
+        await executeQuery(client, `DROP FUNCTION ${tempFuncName}`);
       }
     } finally {
-      await executeQuery(client, `DROP TABLE "${tempTableName}"`);
+      await executeQuery(client, `DROP TABLE ${tempTableName}`);
     }
 
     const sqlParams: HanaParameterType[][] = texts.map((text, i) => {
