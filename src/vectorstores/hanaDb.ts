@@ -1092,9 +1092,11 @@ export class HanaDB extends VectorStore {
     const texts = documents.map((doc) => doc.pageContent);
     const metadatas = documents.map((doc) => doc.metadata);
     const client = this.connection;
+    let vectors;
 
+    const tempTableName = `${this.tableName}_TEMP`;
     const createTempTableSql = `
-      CREATE TABLE ${this.tableName}_TEMP (
+      CREATE LOCAL TEMPORARY COLUMN TABLE ${tempTableName} (
               ID INT PRIMARY KEY,
               "VEC_TEXT" NCLOB,
               "VEC_VECTOR" ${this.vectorColumnType}
@@ -1102,68 +1104,78 @@ export class HanaDB extends VectorStore {
     `;
     await executeQuery(client, createTempTableSql);
 
-    const insetIntoTempTableSql = `
-      INSERT INTO ${this.tableName}_TEMP (ID, "VEC_TEXT", "VEC_VECTOR")
+    try {
+      const insertIntoTempTableSql = `
+      INSERT INTO ${tempTableName} (ID, "VEC_TEXT", "VEC_VECTOR")
       VALUES (?,?,NULL)
-    `;
-    const stmForTempInsert = await prepareQuery(client, insetIntoTempTableSql);
-    const sqlParamsForTempInsert: HanaParameterType[][] = texts.map(
-      (text, i) => {
-        return [i, text];
+      `;
+      const stmForTempInsert = await prepareQuery(
+        client,
+        insertIntoTempTableSql
+      );
+      const sqlParamsForTempInsert: HanaParameterType[][] = texts.map(
+        (text, i) => {
+          return [i, text];
+        }
+      );
+      await executeBatchStatement(stmForTempInsert, sqlParamsForTempInsert);
+
+      let vectorEmbeddingSql;
+      if (!this.internalEmbeddingRemoteSource) {
+        vectorEmbeddingSql = `VECTOR_EMBEDDING(:i_text, 'DOCUMENT', '${this.internalEmbeddingModelId}')`;
+      } else {
+        vectorEmbeddingSql = `VECTOR_EMBEDDING(:i_text, 'DOCUMENT', '${this.internalEmbeddingModelId}', "${this.internalEmbeddingRemoteSource}")`;
       }
-    );
-    await executeBatchStatement(stmForTempInsert, sqlParamsForTempInsert);
+      vectorEmbeddingSql =
+        this.convertVectorEmbeddingToColumnType(vectorEmbeddingSql);
 
-    let vectorEmbeddingSql;
-    if (!this.internalEmbeddingRemoteSource) {
-      vectorEmbeddingSql = `VECTOR_EMBEDDING(:i_text, 'DOCUMENT', '${this.internalEmbeddingModelId}')`;
-    } else {
-      vectorEmbeddingSql = `VECTOR_EMBEDDING(:i_text, 'DOCUMENT', '${this.internalEmbeddingModelId}', "${this.internalEmbeddingRemoteSource}")`;
+      const uid = crypto.randomUUID().replace(/-/g, "_");
+      const tempFuncName = `F_VECTOR_EMBEDDING_${uid}`;
+      const createMapMergeFunctionSql = `
+        CREATE OR REPLACE FUNCTION ${tempFuncName}(
+            IN i_id INT,
+            IN i_text NCLOB
+        )
+        RETURNS TABLE("ID" INT, "PAL_EMBEDDING" ${this.vectorColumnType})
+        LANGUAGE SQLSCRIPT READS SQL DATA AS
+        BEGIN
+            RETURN 
+                SELECT :i_id AS "ID", 
+                    ${vectorEmbeddingSql} AS "PAL_EMBEDDING"
+                FROM DUMMY;
+        END;
+      `;
+      await executeQuery(client, createMapMergeFunctionSql);
+
+      try {
+        const callMapMergeSql = `
+        DO()
+        BEGIN
+            dat = SELECT "ID", "VEC_TEXT", "VEC_VECTOR" FROM "${tempTableName}";
+            o_res = MAP_MERGE(:dat, "${tempFuncName}"(:dat."ID", :dat."VEC_TEXT"));
+            MERGE INTO "${tempTableName}" AS dat
+            USING :o_res AS upd
+            ON dat."ID" = upd."ID"
+            WHEN MATCHED THEN
+                UPDATE SET dat."VEC_VECTOR" = upd."PAL_EMBEDDING";
+        END;
+        `;
+        await executeQuery(client, callMapMergeSql);
+
+        const fetchEmbeddingsSql = `
+        SELECT VEC_VECTOR FROM "${tempTableName}"
+        `;
+        const rows = await executeQuery(client, fetchEmbeddingsSql);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        vectors = rows.map((row: any) =>
+          this.handleVectorOutputType(row.VEC_VECTOR)
+        );
+      } finally {
+        await executeQuery(client, `DROP FUNCTION "${tempFuncName}"`);
+      }
+    } finally {
+      await executeQuery(client, `DROP TABLE "${tempTableName}"`);
     }
-    vectorEmbeddingSql =
-      this.convertVectorEmbeddingToColumnType(vectorEmbeddingSql);
-
-    const createMapMergeFunctionSql = `
-      CREATE OR REPLACE FUNCTION F_VECTOR_EMBEDDING(
-          IN i_id INT,
-          IN i_text NCLOB
-      )
-      RETURNS TABLE("ID" INT, "PAL_EMBEDDING" ${this.vectorColumnType})
-      LANGUAGE SQLSCRIPT READS SQL DATA AS
-      BEGIN
-          RETURN 
-              SELECT :i_id AS "ID", 
-                  ${vectorEmbeddingSql} AS "PAL_EMBEDDING"
-              FROM DUMMY;
-      END;
-    `;
-    await executeQuery(client, createMapMergeFunctionSql);
-
-    const callMapMergeSql = `
-      DO()
-      BEGIN
-          dat = SELECT "ID", "VEC_TEXT", "VEC_VECTOR" FROM "${this.tableName}_TEMP";
-          o_res = MAP_MERGE(:dat, "F_VECTOR_EMBEDDING"(:dat."ID", :dat."VEC_TEXT"));
-          MERGE INTO "${this.tableName}_TEMP" AS dat
-          USING :o_res AS upd
-          ON dat."ID" = upd."ID"
-          WHEN MATCHED THEN
-              UPDATE SET dat."VEC_VECTOR" = upd."PAL_EMBEDDING";
-      END;
-    `;
-    await executeQuery(client, callMapMergeSql);
-
-    const fetchEmbeddingsSql = `
-      SELECT VEC_VECTOR FROM "${this.tableName}_TEMP"
-    `;
-    const rows = await executeQuery(client, fetchEmbeddingsSql);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const vectors = rows.map((row: any) =>
-      this.handleVectorOutputType(row.VEC_VECTOR)
-    );
-
-    await executeQuery(client, `DROP FUNCTION F_VECTOR_EMBEDDING`);
-    await executeQuery(client, `DROP TABLE "${this.tableName}_TEMP"`);
 
     const sqlParams: HanaParameterType[][] = texts.map((text, i) => {
       const metadata = Array.isArray(metadatas) ? metadatas[i] : metadatas;
