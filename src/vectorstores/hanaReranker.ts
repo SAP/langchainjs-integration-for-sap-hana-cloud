@@ -96,7 +96,8 @@ export class HanaReranker extends BaseDocumentCompressor {
         );
 
       const rerankSql = `
-        SELECT ${topN}
+        SELECT 
+          TOP ${topN}
           ROW_NUMBER() OVER() - 1 AS INDEX,
           ID,
           TEXT,
