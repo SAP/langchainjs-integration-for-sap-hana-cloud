@@ -141,7 +141,7 @@ export class HanaReranker extends BaseDocumentCompressor {
    * @param query - The query string to compare the documents against for relevance.
    * @returns A list of Document objects reranked according to relevance to the query.
    * Only the top 5 documents are returned, or fewer if there are less than 5 documents.
-   * The scores are added to the metadata of each Document under the key "relevanceScore".
+   * The scores are added to the metadata of each Document under the key "relevance_score".
    */
   async compressDocuments(
     documents: Document[],
@@ -153,7 +153,7 @@ export class HanaReranker extends BaseDocumentCompressor {
       Math.min(5, documents.length)
     );
     const compressedDocs = rerankResults.map(([, score, doc]) => {
-      doc!.metadata["relevanceScore"] = score;
+      doc!.metadata["relevance_score"] = score;
       return doc!;
     });
     return compressedDocs;
