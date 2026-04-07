@@ -104,7 +104,7 @@ describe("test rerank invalid topN", () => {
 test("test rerank with invalid metadata key", async () => {
   await expect(
     reranker.rerank(DOCUMENTS, "test query", 3, true, ["invalid-key"])
-  ).rejects.toThrow("Invalid metadata key: invalid-key");
+  ).rejects.toThrow("Invalid metadata key invalid-key");
 });
 
 test("test compress documents", async () => {
