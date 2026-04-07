@@ -1127,7 +1127,7 @@ export class HanaDB extends VectorStore {
 
   /**Validate that the provided model is supported by SAP HANA for reranking. */
   private async validateRerankModelId(modelId: string): Promise<void> {
-    const sqlStr = `SELECT ${generateCrossEncodingSqlAndParams("'test'", "", "test", [], modelId)[0]} SYS.FROM DUMMY`;
+    const sqlStr = `SELECT ${generateCrossEncodingSqlAndParams("'test'", "", "test", [], modelId)[0]} FROM SYS.DUMMY`;
     const sqlParams = ["test", modelId];
     const client = this.connection;
     const stm = await prepareQuery(client, sqlStr);
