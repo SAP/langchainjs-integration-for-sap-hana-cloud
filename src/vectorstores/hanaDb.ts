@@ -45,7 +45,7 @@ const defaultVectorColumn = "VEC_VECTOR";
 const defaultVectorColumnLength = -1; // -1 means dynamic length
 const defaultVectorColumnType = "REAL_VECTOR";
 
-interface RerankConfigOptions {
+export interface RerankConfigOptions {
   query?: string;
   topN?: number;
   rankFields?: string[];
@@ -1125,6 +1125,12 @@ export class HanaDB extends VectorStore {
     await executeStatement(stm, queryTuple);
   }
 
+  private static validateRerankConfig(rerankConfig: RerankConfigOptions): void {
+    if (!rerankConfig.query) {
+      throw new Error("rerankConfig.query must be a non-empty string"); 
+    }
+  }
+
   /**Validate that the provided model is supported by SAP HANA for reranking. */
   private async validateRerankModelId(modelId: string): Promise<void> {
     const sqlStr = `SELECT ${generateCrossEncodingSqlAndParams("'test'", "", "test", [], modelId)[0]} FROM SYS.DUMMY`;
@@ -1378,6 +1384,7 @@ export class HanaDB extends VectorStore {
     sqlStr += orderStr;
 
     if (rerankConfig) {
+      HanaDB.validateRerankConfig(rerankConfig);
       const rerankTopN = rerankConfig.topN || Math.min(3, k);
       const rerankRankFields = rerankConfig.rankFields || [];
       const rerankModelId = rerankConfig.modelId;
@@ -1402,14 +1409,14 @@ export class HanaDB extends VectorStore {
       SELECT TOP ${rerankTopN}
       ${this.contentColumn},
       ${this.metadataColumn},
-      ${this.vectorColumn},
+      VECTOR,
       ${crossEncodingSql} AS SCORE
       FROM (
         ${sqlStr}
       )
       ORDER BY SCORE DESC;
-      `
-      queryTuple.unshift(...crossEncodingParams)
+      `;
+      queryTuple.unshift(...crossEncodingParams);
     }
 
     const client = this.connection;
