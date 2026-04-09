@@ -25,6 +25,10 @@ export class HanaReranker extends BaseDocumentCompressor {
 
   /**Validate that the provided model is supported by SAP HANA for reranking.*/
   private async validateModelSupported() {
+    if (!this.modelId) {
+      throw new Error("modelId must be a non-empty string");
+    }
+
     const sqlStr = `SELECT ${generateCrossEncodingSqlAndParams("'test'", "", "test", [], this.modelId)[0]} FROM SYS.DUMMY`;
     const sqlParams = ["test", this.modelId];
     const client = this.connection;
