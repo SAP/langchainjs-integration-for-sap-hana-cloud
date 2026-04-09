@@ -291,39 +291,78 @@ describe.each(["Array", "Buffer", undefined] as const)(
               );
             });
 
-            describe.each([
-              { query: TEXTS[0], modelId: "non_existent_model" }
-            ])("invalid rerank config %j", (invalidRerankConfig) => {
-              test("similarity search invalid rerank config", async () => {
-                const vectorDB = await vectorDBSetup(vectorColumnType);
+            describe.each([{ query: TEXTS[0], modelId: "non_existent_model" }])(
+              "invalid rerank config non existent model %j",
+              (invalidRerankConfig) => {
+                test("similarity search invalid rerank config", async () => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
 
-                await expect(
-                  vectorDB.similaritySearch(
-                    TEXTS[0],
-                    3,
-                    undefined,
-                    undefined,
-                    invalidRerankConfig
-                  )
-                ).rejects.toThrow();
-                await vectorDBTeardown();
-              });
+                  await expect(
+                    vectorDB.similaritySearch(
+                      TEXTS[0],
+                      3,
+                      undefined,
+                      undefined,
+                      invalidRerankConfig
+                    )
+                  ).rejects.toThrow();
+                  await vectorDBTeardown();
+                });
 
-              test("similarity search with metadata filter (numeric) invalid rerank config", async () => {
-                const vectorDB = await vectorDBSetup(vectorColumnType);
+                test("similarity search with metadata filter (numeric) invalid rerank config", async () => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
 
-                await expect(
-                  vectorDB.similaritySearch(
-                    TEXTS[0],
-                    3,
-                    { start: 100 },
-                    undefined,
-                    invalidRerankConfig
-                  )
-                ).rejects.toThrow();
-                await vectorDBTeardown();
-              });
-            });
+                  await expect(
+                    vectorDB.similaritySearch(
+                      TEXTS[0],
+                      3,
+                      { start: 100 },
+                      undefined,
+                      invalidRerankConfig
+                    )
+                  ).rejects.toThrow();
+                  await vectorDBTeardown();
+                });
+              }
+            );
+
+            describe.each([{ query: TEXTS[0], modelId: "" }])(
+              "invalid rerank config empty model id %j",
+              (invalidRerankConfig) => {
+                const expectedErrorMessage =
+                  "modelId must be a non-empty string";
+
+                test("similarity search invalid rerank config", async () => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
+
+                  await expect(
+                    vectorDB.similaritySearch(
+                      TEXTS[0],
+                      3,
+                      undefined,
+                      undefined,
+                      invalidRerankConfig
+                    )
+                  ).rejects.toThrow(expectedErrorMessage);
+                  await vectorDBTeardown();
+                });
+
+                test("similarity search with metadata filter (numeric) invalid rerank config", async () => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
+
+                  await expect(
+                    vectorDB.similaritySearch(
+                      TEXTS[0],
+                      3,
+                      { start: 100 },
+                      undefined,
+                      invalidRerankConfig
+                    )
+                  ).rejects.toThrow(expectedErrorMessage);
+                  await vectorDBTeardown();
+                });
+              }
+            );
           });
 
           describe("max marginal relevance search tests", () => {
