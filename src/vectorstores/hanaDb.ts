@@ -22,6 +22,11 @@ import {
   Filter,
   LOGICAL_OPERATORS_TO_SQL,
 } from "./createWhereClause.js";
+import {
+  generateCrossEncodingSqlAndParams,
+  sanitizeMetadataKeys,
+} from "./utils.js";
+import { Callbacks } from "@langchain/core/callbacks/manager";
 
 const HANA_DISTANCE_FUNCTION: Record<DistanceStrategy, [string, string]> = {
   COSINE: ["COSINE_SIMILARITY", "DESC"],
@@ -39,6 +44,13 @@ const defaultMetadataColumn = "VEC_META";
 const defaultVectorColumn = "VEC_VECTOR";
 const defaultVectorColumnLength = -1; // -1 means dynamic length
 const defaultVectorColumnType = "REAL_VECTOR";
+
+export interface RerankConfigOptions {
+  query?: string;
+  topN?: number;
+  rankFields?: string[];
+  modelId: string;
+}
 
 /**
  * Configuration options used to initialize a HanaDB instance.
@@ -91,9 +103,6 @@ export class HanaDB extends VectorStore {
   private connection: Connection;
 
   private distanceStrategy: DistanceStrategy;
-
-  // Compile pattern only once, for better performance
-  private static compiledPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
   private tableName: string;
 
@@ -702,26 +711,6 @@ export class HanaDB extends VectorStore {
     return embedding;
   }
 
-  /**
-   * Sanitizes the keys of the metadata object to ensure they match the required pattern.
-   * Throws an error if any key does not match the pattern.
-   *
-   * @param {Record<string, any>} metadata - The metadata object with keys to be validated.
-   * @returns {object[] | object} The original metadata object if all keys are valid.
-   * @throws {Error} Throws an error if any metadata key is invalid.
-   */
-  private sanitizeMetadataKeys(metadata: object[] | object): object[] | object {
-    if (!metadata) {
-      return {};
-    }
-    Object.keys(metadata).forEach((key) => {
-      if (!HanaDB.compiledPattern.test(key)) {
-        throw new Error(`Invalid metadata key ${key}`);
-      }
-    });
-    return metadata;
-  }
-
   static sanitizeSpecificMetadataColumns(columns: string[]): string[] {
     return columns.map((column) => this.sanitizeName(column));
   }
@@ -988,11 +977,12 @@ export class HanaDB extends VectorStore {
         this.splitOffSpecialMetadata(metadata);
       // Ensure embedding is generated or provided
       const serializedEmbedding = this.serializeBinaryFormat(vectors[i]);
+      sanitizeMetadataKeys(Object.keys(remainingMetadata));
 
       // Prepare the SQL parameters
       return [
         text,
-        JSON.stringify(this.sanitizeMetadataKeys(remainingMetadata)),
+        JSON.stringify(remainingMetadata),
         serializedEmbedding,
         ...specialMetadata,
       ];
@@ -1033,10 +1023,11 @@ export class HanaDB extends VectorStore {
       const metadata = Array.isArray(metadatas) ? metadatas[i] : metadatas;
       const [remainingMetadata, specialMetadata] =
         this.splitOffSpecialMetadata(metadata);
+      sanitizeMetadataKeys(Object.keys(remainingMetadata));
       // Prepare the SQL parameters
       return [
         text,
-        JSON.stringify(this.sanitizeMetadataKeys(remainingMetadata)),
+        JSON.stringify(remainingMetadata),
         ...this.generateVectorEmbeddingSqlandParams(text, "DOCUMENT")[1],
         ...specialMetadata,
       ];
@@ -1134,6 +1125,27 @@ export class HanaDB extends VectorStore {
     await executeStatement(stm, queryTuple);
   }
 
+  private static validateRerankConfig(rerankConfig: RerankConfigOptions): void {
+    if (rerankConfig.query === undefined) {
+      throw new Error("rerankConfig.query must be defined"); 
+    }
+    if (!rerankConfig.modelId) {
+      throw new Error("rerankConfig.modelId must be a non-empty string");
+    }
+  }
+
+  /**Validate that the provided model is supported by SAP HANA for reranking. */
+  private async validateRerankModelId(rerankModelId: string): Promise<void> {
+    if (!rerankModelId) {
+      throw new Error("rerankModelId must be a non-empty string");
+    }
+    const sqlStr = `SELECT ${generateCrossEncodingSqlAndParams("'test'", "", "test", [], rerankModelId)[0]} FROM SYS.DUMMY`;
+    const sqlParams = ["test", rerankModelId];
+    const client = this.connection;
+    const stm = await prepareQuery(client, sqlStr);
+    await executeStatement(stm, sqlParams);
+  }
+
   /**
    * Return docs most similar to query.
    * @param query Query text for the similarity search.
@@ -1145,9 +1157,17 @@ export class HanaDB extends VectorStore {
   async similaritySearch(
     query: string,
     k: number,
-    filter?: this["FilterType"]
+    filter?: this["FilterType"],
+    _callbacks?: Callbacks,
+    rerankConfig?: RerankConfigOptions
   ): Promise<Document[]> {
-    const results = await this.similaritySearchWithScore(query, k, filter);
+    const results = await this.similaritySearchWithScore(
+      query,
+      k,
+      filter,
+      _callbacks,
+      rerankConfig
+    );
     return results.map((result) => result[0]);
   }
 
@@ -1163,12 +1183,16 @@ export class HanaDB extends VectorStore {
   async similaritySearchVectorWithScore(
     queryEmbedding: number[],
     k: number,
-    filter?: this["FilterType"]
+    filter?: this["FilterType"],
+    _callbacks?: Callbacks,
+    rerankConfig?: RerankConfigOptions
   ): Promise<[Document, number][]> {
     const wholeResult = await this.similaritySearchWithScoreAndVectorByVector(
       queryEmbedding,
       k,
-      filter
+      filter,
+      _callbacks,
+      rerankConfig
     );
     // Return documents and scores, discarding the vectors
     return wholeResult.map(([doc, score]) => [doc, score]);
@@ -1185,7 +1209,9 @@ export class HanaDB extends VectorStore {
   async similaritySearchWithScore(
     query: string,
     k: number,
-    filter?: this["FilterType"]
+    filter?: this["FilterType"],
+    _callbacks?: Callbacks,
+    rerankConfig?: RerankConfigOptions
   ): Promise<[Document, number][]> {
     let wholeResult = null;
     if (this.useInternalEmbeddings) {
@@ -1193,15 +1219,28 @@ export class HanaDB extends VectorStore {
       wholeResult = await this.similaritySearchWithScoreAndVectorByQuery(
         query,
         k,
-        filter
+        filter,
+        _callbacks,
+        rerankConfig
       );
     } else {
+      let rerankConfigCopy: RerankConfigOptions | undefined;
+      if (rerankConfig) {
+        rerankConfigCopy = { ...rerankConfig };
+        if (rerankConfigCopy.query === undefined) {
+          rerankConfigCopy.query = query;
+        }
+      } else {
+        rerankConfigCopy = rerankConfig;
+      }
       const queryEmbedding = await this.embeddings.embedQuery(query);
       // External embeddings: generate embedding from the query
       wholeResult = await this.similaritySearchWithScoreAndVectorByVector(
         queryEmbedding,
         k,
-        filter
+        filter,
+        _callbacks,
+        rerankConfigCopy
       );
     }
     return wholeResult.map(([doc, score]) => [doc, score]);
@@ -1217,13 +1256,21 @@ export class HanaDB extends VectorStore {
   async similaritySearchWithScoreAndVectorByVector(
     embedding: number[],
     k: number,
-    filter?: this["FilterType"]
+    filter?: this["FilterType"],
+    _callbacks?: Callbacks,
+    rerankConfig?: RerankConfigOptions
   ): Promise<Array<[Document, number, number[]]>> {
     // Convert the embedding vector to a string for SQL query
     const sanitizedEmbedding = HanaDB.sanitizeListFloat(embedding);
     const embeddingString = `'[${sanitizedEmbedding.join(", ")}]'`;
     const embeddingExpr = this.convertToTargetVectorType(embeddingString);
-    return this.similaritySearchWithScoreAndVector(embeddingExpr, k, filter);
+    return this.similaritySearchWithScoreAndVector(
+      embeddingExpr,
+      k,
+      filter,
+      _callbacks,
+      rerankConfig
+    );
   }
 
   /**
@@ -1241,13 +1288,26 @@ export class HanaDB extends VectorStore {
   async similaritySearchWithScoreAndVectorByQuery(
     query: string,
     k: number,
-    filter?: this["FilterType"]
+    filter?: this["FilterType"],
+    _callbacks?: Callbacks,
+    rerankConfig?: RerankConfigOptions
   ): Promise<Array<[Document, number, number[]]>> {
     if (!this.useInternalEmbeddings) {
       throw new Error(
         "Internal embedding search requires an internal embedding instance."
       );
     }
+
+    let rerankConfigCopy: RerankConfigOptions | undefined;
+    if (rerankConfig) {
+      rerankConfigCopy = { ...rerankConfig };
+      if (rerankConfigCopy.query === undefined) {
+        rerankConfigCopy.query = query;
+      }
+    } else {
+      rerankConfigCopy = rerankConfig;
+    }
+
     const generatedSqlAndParams = this.generateVectorEmbeddingSqlandParams(
       query,
       "QUERY"
@@ -1261,6 +1321,8 @@ export class HanaDB extends VectorStore {
       vectorEmbeddingSql,
       k,
       filter,
+      _callbacks,
+      rerankConfigCopy,
       vectorEmbeddingParams
     );
   }
@@ -1282,6 +1344,8 @@ export class HanaDB extends VectorStore {
     embeddingExpr: string,
     k: number,
     filter?: this["FilterType"],
+    _callbacks?: Callbacks,
+    rerankConfig?: RerankConfigOptions,
     vectorEmbeddingParams?: HanaParameterType[]
   ): Promise<Array<[Document, number, number[]]>> {
     validateK(k);
@@ -1305,10 +1369,10 @@ export class HanaDB extends VectorStore {
                     "${this.contentColumn}", 
                     "${this.metadataColumn}", 
                     "${this.vectorColumn}" AS VECTOR, 
-                    ${distanceFuncName}("${this.vectorColumn}", ${embeddingExpr}) AS CS
+                    ${distanceFuncName}("${this.vectorColumn}", ${embeddingExpr}) AS SCORE
                     FROM ${fromClause}`;
     // Add order by clause to sort by similarity
-    const orderStr = ` ORDER BY CS ${
+    const orderStr = ` ORDER BY SCORE ${
       HANA_DISTANCE_FUNCTION[this.distanceStrategy][1]
     }`;
 
@@ -1324,6 +1388,42 @@ export class HanaDB extends VectorStore {
     }
 
     sqlStr += orderStr;
+
+    if (rerankConfig) {
+      HanaDB.validateRerankConfig(rerankConfig);
+      const rerankTopN = rerankConfig.topN || Math.min(3, k);
+      const rerankRankFields = rerankConfig.rankFields || [];
+      const rerankModelId = rerankConfig.modelId;
+      await this.validateRerankModelId(rerankModelId);
+      
+      const rerankQuery = rerankConfig.query;
+
+      if (rerankTopN > k) {
+        throw new Error("rerankConfig.topN cannot be greater than k");
+      }
+
+      const [crossEncodingSql, crossEncodingParams] = generateCrossEncodingSqlAndParams(
+        this.contentColumn,
+        this.metadataColumn,
+        rerankQuery!,
+        rerankRankFields,
+        rerankModelId,
+      );
+
+      sqlStr = `
+      SELECT TOP ${rerankTopN}
+      ${this.contentColumn},
+      ${this.metadataColumn},
+      VECTOR,
+      ${crossEncodingSql} AS SCORE
+      FROM (
+        ${sqlStr}
+      )
+      ORDER BY SCORE DESC;
+      `;
+      queryTuple.unshift(...crossEncodingParams);
+    }
+
     const client = this.connection;
     const stm = await prepareQuery(client, sqlStr);
     const resultSet = await executeStatement(stm, queryTuple);
@@ -1336,7 +1436,7 @@ export class HanaDB extends VectorStore {
           metadata,
         };
         const resultVector = this.handleVectorOutputType(row.VECTOR);
-        const score = row.CS;
+        const score = row.SCORE;
         return [doc, score, resultVector];
       }
     );
