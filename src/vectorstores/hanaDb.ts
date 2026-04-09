@@ -17,10 +17,8 @@ import {
   validateKAndFetchK,
 } from "../hanautils.js";
 import {
-  CONTAINS_OPERATOR,
   CreateWhereClause,
   Filter,
-  LOGICAL_OPERATORS_TO_SQL,
 } from "./createWhereClause.js";
 
 const HANA_DISTANCE_FUNCTION: Record<DistanceStrategy, [string, string]> = {
@@ -153,7 +151,7 @@ export class HanaDB extends VectorStore {
     if (!filterObj || typeof filterObj !== "object") return;
 
     Object.entries(filterObj).forEach(([key, value]) => {
-      if (key === CONTAINS_OPERATOR) {
+      if (key === "$contains") {
         if (
           parentKey &&
           parentKey !== this.contentColumn &&
@@ -161,8 +159,10 @@ export class HanaDB extends VectorStore {
         ) {
           keywordColumns.add(parentKey);
         }
-      } else if (key in LOGICAL_OPERATORS_TO_SQL) {
-        // Assume it's an array of filters
+      } else if (["$and", "$or"].includes(key)) {
+        if (!Array.isArray(value)){
+          throw new Error(`Expected an array of at least two operands for operator=${key}, but got operands=${JSON.stringify(value)}`);
+        }
         (value as this["FilterType"][]).forEach((subfilter) =>
           this.recurseFiltersHelper(keywordColumns, subfilter)
         );
