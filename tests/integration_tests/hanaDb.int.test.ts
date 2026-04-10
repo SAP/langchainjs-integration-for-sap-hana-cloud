@@ -758,6 +758,14 @@ describe.each(["Array", "Buffer", undefined] as const)(
             await vectorDBTeardown();
           });
 
+          test("hanavector add documents with map merge", async () => {
+            const vectorDB = await vectorDBSetup(vectorColumnType);
+            await expect(
+              vectorDB.addDocuments(DOCUMENTS, { useMapMerge: true })
+            ).rejects.toThrow(/map merge cannot be used with external embeddings/);
+            await vectorDBTeardown();
+          });
+
           test("hanavector add vectors", async () => {
             const vectors = [
               [1, 2],
@@ -828,6 +836,16 @@ describe.each(["Array", "Buffer", undefined] as const)(
             await customVectorDBTeardown();
           });
 
+          test("hanavector from texts with map merge", async () => {
+            await expect(
+              HanaDB.fromTexts(TEXTS, METADATAS, embeddings, {
+                connection: config.client,
+                tableName: TABLE_NAME_CUSTOM_DB,
+              }, { useMapMerge: true })
+            ).rejects.toThrow(/map merge cannot be used with external embeddings/);
+            await customVectorDBTeardown();
+          });
+
           test("hanavector from documents", async () => {
             const vectorDB = await HanaDB.fromDocuments(DOCUMENTS, embeddings, {
               connection: config.client,
@@ -839,6 +857,16 @@ describe.each(["Array", "Buffer", undefined] as const)(
               `SELECT COUNT(*) AS COUNT FROM ${TABLE_NAME_CUSTOM_DB}`
             );
             expect(countResult[0]?.COUNT ?? -1).toBe(DOCUMENTS.length);
+            await customVectorDBTeardown();
+          });
+
+          test("hanavector from documents with map merge", async () => {
+            await expect(
+              HanaDB.fromDocuments(DOCUMENTS, embeddings, {
+                connection: config.client,
+                tableName: TABLE_NAME_CUSTOM_DB,
+              }, { useMapMerge: true })
+            ).rejects.toThrow(/map merge cannot be used with external embeddings/); 
             await customVectorDBTeardown();
           });
         });

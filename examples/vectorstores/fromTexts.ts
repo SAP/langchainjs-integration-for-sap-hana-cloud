@@ -42,6 +42,20 @@ const vectorStore = await HanaDB.fromTexts(
   args
 );
 
+// A useMapMerge flag can be supplied in the options for faster insertion
+// map merge only works with internal Embeddings
+// const vectorStore = await HanaDB.fromTexts(
+//   ["Bye bye", "Hello world", "hello nice world"],
+//   [
+//     { id: 2, name: "2" },
+//     { id: 1, name: "1" },
+//     { id: 3, name: "3" },
+//   ],
+//   embeddings,
+//   args,
+//   { useMapMerge: true }
+// );
+
 const response = await vectorStore.similaritySearch("hello world", 2);
 
 console.log(response);
