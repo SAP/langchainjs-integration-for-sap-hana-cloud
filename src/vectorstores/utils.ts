@@ -1,4 +1,5 @@
-import { HanaParameterType } from "@sap/hana-client";
+import { Connection, HanaParameterType } from "@sap/hana-client";
+import { executeStatement, prepareQuery } from "../hanautils.js";
 
 export const compiledPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -11,6 +12,19 @@ export function sanitizeMetadataKeys(metadataKeys: string[]): void {
   });
 }
 
+/**Validate that the provided model is supported by SAP HANA for reranking.*/
+export async function validateRerankModelId(
+  modelId: string,
+  connection: Connection
+): Promise<void> {
+  if (!modelId) {
+    throw new Error("modelId must be a non-empty string");
+  }
+  const sql = `SELECT CROSS_ENCODE('test', 'test', ?) OVER() FROM SYS.DUMMY`;
+  const stm = await prepareQuery(connection, sql);
+  await executeStatement(stm, [modelId]);
+}
+
 /**Generate SQL and parameters for CROSS_ENCODE function.*/
 export function generateCrossEncodingSqlAndParams(
   textColumn: string,
@@ -21,12 +35,12 @@ export function generateCrossEncodingSqlAndParams(
 ): [string, HanaParameterType[]] {
   let crossEncodeInput = "";
   if (rankFields.length > 0) {
-    crossEncodeInput = `'${textColumn}:' || TO_NVARCHAR(${textColumn})`;
+    crossEncodeInput = `'${textColumn}:' || TO_NVARCHAR("${textColumn}")`;
     for (const field of rankFields) {
-      crossEncodeInput += ` || '| ${field}:' || TO_NVARCHAR(COALESCE(JSON_VALUE(${metadataColumn}, '$.${field}'), ''))`;
+      crossEncodeInput += ` || '| ${field}:' || TO_NVARCHAR(COALESCE(JSON_VALUE("${metadataColumn}", '$.${field}'), ''))`;
     }
   } else {
-    crossEncodeInput = `TO_NVARCHAR(${textColumn})`;
+    crossEncodeInput = `TO_NVARCHAR("${textColumn}")`;
   }
   const crossEncodingSql = `CROSS_ENCODE(${crossEncodeInput}, ?, ?) OVER()`;
   const crossEncodingParams: HanaParameterType[] = [query, rerankModelId];

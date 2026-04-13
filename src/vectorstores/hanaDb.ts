@@ -23,6 +23,7 @@ import {
 import {
   generateCrossEncodingSqlAndParams,
   sanitizeMetadataKeys,
+  validateRerankModelId,
 } from "./utils.js";
 import { Callbacks } from "@langchain/core/callbacks/manager";
 
@@ -1127,23 +1128,11 @@ export class HanaDB extends VectorStore {
 
   private static validateRerankConfig(rerankConfig: RerankConfigOptions): void {
     if (rerankConfig.query === undefined) {
-      throw new Error("rerankConfig.query must be defined"); 
+      throw new Error("rerankConfig.query must be defined");
     }
     if (!rerankConfig.modelId) {
       throw new Error("rerankConfig.modelId must be a non-empty string");
     }
-  }
-
-  /**Validate that the provided model is supported by SAP HANA for reranking. */
-  private async validateRerankModelId(rerankModelId: string): Promise<void> {
-    if (!rerankModelId) {
-      throw new Error("rerankModelId must be a non-empty string");
-    }
-    const sqlStr = `SELECT ${generateCrossEncodingSqlAndParams("'test'", "", "test", [], rerankModelId)[0]} FROM SYS.DUMMY`;
-    const sqlParams = ["test", rerankModelId];
-    const client = this.connection;
-    const stm = await prepareQuery(client, sqlStr);
-    await executeStatement(stm, sqlParams);
   }
 
   /**
@@ -1394,27 +1383,28 @@ export class HanaDB extends VectorStore {
       const rerankTopN = rerankConfig.topN || Math.min(3, k);
       const rerankRankFields = rerankConfig.rankFields || [];
       const rerankModelId = rerankConfig.modelId;
-      await this.validateRerankModelId(rerankModelId);
-      
+      await validateRerankModelId(rerankModelId, this.connection);
+
       const rerankQuery = rerankConfig.query;
 
       if (rerankTopN > k) {
         throw new Error("rerankConfig.topN cannot be greater than k");
       }
 
-      const [crossEncodingSql, crossEncodingParams] = generateCrossEncodingSqlAndParams(
-        this.contentColumn,
-        this.metadataColumn,
-        rerankQuery!,
-        rerankRankFields,
-        rerankModelId,
-      );
+      const [crossEncodingSql, crossEncodingParams] =
+        generateCrossEncodingSqlAndParams(
+          this.contentColumn,
+          this.metadataColumn,
+          rerankQuery!,
+          rerankRankFields,
+          rerankModelId
+        );
 
       sqlStr = `
       SELECT TOP ${rerankTopN}
-      ${this.contentColumn},
-      ${this.metadataColumn},
-      VECTOR,
+      "${this.contentColumn}",
+      "${this.metadataColumn}",
+      "VECTOR",
       ${crossEncodingSql} AS SCORE
       FROM (
         ${sqlStr}

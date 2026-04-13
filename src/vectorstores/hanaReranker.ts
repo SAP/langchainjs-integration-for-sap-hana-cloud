@@ -10,6 +10,7 @@ import {
 import {
   generateCrossEncodingSqlAndParams,
   sanitizeMetadataKeys,
+  validateRerankModelId,
 } from "./utils.js";
 
 export class HanaReranker extends BaseDocumentCompressor {
@@ -23,21 +24,8 @@ export class HanaReranker extends BaseDocumentCompressor {
     this.modelId = modelId;
   }
 
-  /**Validate that the provided model is supported by SAP HANA for reranking.*/
-  private async validateModelSupported() {
-    if (!this.modelId) {
-      throw new Error("modelId must be a non-empty string");
-    }
-
-    const sqlStr = `SELECT ${generateCrossEncodingSqlAndParams("'test'", "", "test", [], this.modelId)[0]} FROM SYS.DUMMY`;
-    const sqlParams = ["test", this.modelId];
-    const client = this.connection;
-    const stm = await prepareQuery(client, sqlStr);
-    await executeStatement(stm, sqlParams);
-  }
-
   public async initialize() {
-    await this.validateModelSupported();
+    await validateRerankModelId(this.modelId, this.connection);
   }
 
   /**
@@ -68,16 +56,16 @@ export class HanaReranker extends BaseDocumentCompressor {
 
     const tempTableName = `#RERANK_DOCS`;
     const createTempTableSql = `
-      CREATE LOCAL TEMPORARY TABLE ${tempTableName} (
-        ID NVARCHAR(5000),
-        TEXT NCLOB,
-        METADATA NCLOB
+      CREATE LOCAL TEMPORARY TABLE "${tempTableName}" (
+        "ID" NVARCHAR(5000),
+        "TEXT" NCLOB,
+        "METADATA" NCLOB
       )
     `;
     await executeQuery(client, createTempTableSql);
 
     try {
-      const insertSql = `INSERT INTO ${tempTableName} (ID, TEXT, METADATA) VALUES (?, ?, ?)`;
+      const insertSql = `INSERT INTO "${tempTableName}" ("ID", "TEXT", "METADATA") VALUES (?, ?, ?)`;
       const insertStm = await prepareQuery(client, insertSql);
       const insertSqlParams = [];
       for (const doc of documents) {
@@ -102,13 +90,13 @@ export class HanaReranker extends BaseDocumentCompressor {
       const rerankSql = `
         SELECT 
           TOP ${topN}
-          ROW_NUMBER() OVER() - 1 AS INDEX,
-          ID,
-          TEXT,
-          METADATA,
-          ${crossEncodingSql} AS SCORE
-        FROM ${tempTableName}
-        ORDER BY SCORE DESC
+          ROW_NUMBER() OVER() - 1 AS "INDEX",
+          "ID",
+          "TEXT",
+          "METADATA",
+          ${crossEncodingSql} AS "SCORE"
+        FROM "${tempTableName}"
+        ORDER BY "SCORE" DESC
       `;
       const rerankStm = await prepareQuery(client, rerankSql);
       const rerankResultSet = await executeStatement(
@@ -135,7 +123,7 @@ export class HanaReranker extends BaseDocumentCompressor {
       });
       return result;
     } finally {
-      const dropTempTableSql = `DROP TABLE ${tempTableName}`;
+      const dropTempTableSql = `DROP TABLE "${tempTableName}"`;
       await executeQuery(client, dropTempTableSql);
     }
   }
