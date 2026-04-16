@@ -57,6 +57,7 @@ export class HanaReranker extends BaseDocumentCompressor {
     const tempTableName = `#RERANK_DOCS`;
     const createTempTableSql = `
       CREATE LOCAL TEMPORARY TABLE "${tempTableName}" (
+        "INDEX" INTEGER,
         "ID" NVARCHAR(5000),
         "TEXT" NCLOB,
         "METADATA" NCLOB
@@ -65,17 +66,14 @@ export class HanaReranker extends BaseDocumentCompressor {
     await executeQuery(client, createTempTableSql);
 
     try {
-      const insertSql = `INSERT INTO "${tempTableName}" ("ID", "TEXT", "METADATA") VALUES (?, ?, ?)`;
+      const insertSql = `INSERT INTO "${tempTableName}" ("INDEX", "ID", "TEXT", "METADATA") VALUES (?, ?, ?, ?)`;
       const insertStm = await prepareQuery(client, insertSql);
-      const insertSqlParams = [];
-      for (const doc of documents) {
-        sanitizeMetadataKeys(Object.keys(doc.metadata));
-        insertSqlParams.push([
-          doc.id,
-          doc.pageContent,
-          JSON.stringify(doc.metadata),
-        ]);
-      }
+      const insertSqlParams = documents.map((doc, idx) => [
+        idx,
+        doc.id,
+        doc.pageContent,
+        JSON.stringify(doc.metadata),
+      ]);
       await executeBatchStatement(insertStm, insertSqlParams);
 
       const [crossEncodingSql, crossEncodingParams] =
@@ -90,7 +88,7 @@ export class HanaReranker extends BaseDocumentCompressor {
       const rerankSql = `
         SELECT 
           TOP ${topN}
-          ROW_NUMBER() OVER() - 1 AS "INDEX",
+          "INDEX",
           "ID",
           "TEXT",
           "METADATA",
