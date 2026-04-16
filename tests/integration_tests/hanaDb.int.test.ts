@@ -30,7 +30,6 @@ import {
   TABLE_NAME_CUSTOM_DB,
   TEXTS,
 } from "./hana.test.constants.js";
-import { M } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
 
 // Connection parameters factory
 const createConnectionParams = (vectorOutputType?: "Array" | "Buffer") => {
