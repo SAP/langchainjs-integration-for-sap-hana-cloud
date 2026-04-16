@@ -1,18 +1,17 @@
 /* eslint-disable no-process-env */
 import hanaClient, { Connection } from "@sap/hana-client";
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  test,
-} from "vitest";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import {
   executeQuery,
   executeStatement,
   prepareQuery,
 } from "../../src/hanautils.js";
-import { HanaDB, HanaDBArgs, HanaInternalEmbeddings } from "../../src/index.js";
+import {
+  HanaDB,
+  HanaDBArgs,
+  HanaInternalEmbeddings,
+  RerankConfigOptions,
+} from "../../src/index.js";
 import {
   DOCUMENTS,
   METADATAS,
@@ -68,7 +67,7 @@ async function isInternalEmbeddingAvailable(
   let sqlStr;
   const sqlParams = [embeddings.getModelId()];
   if (!embeddings.getRemoteSource()) {
-    sqlStr = `VECTOR_EMBEDDING('test', 'QUERY', ?)`; 
+    sqlStr = `VECTOR_EMBEDDING('test', 'QUERY', ?)`;
   } else {
     sqlStr = `VECTOR_EMBEDDING('test', 'QUERY', ?, "${embeddings.getRemoteSource()}")`;
   }
@@ -85,6 +84,34 @@ async function isInternalEmbeddingAvailable(
   }
 }
 
+const baseValidRerankConfigs: (RerankConfigOptions | undefined)[] = [
+  undefined,
+  { modelId: process.env.HANA_DB_RERANK_MODEL_ID! },
+  {
+    modelId: process.env.HANA_DB_RERANK_MODEL_ID!,
+    rankFields: ["start", "ready"],
+  },
+];
+
+const buildValidRerankConfig = (
+  baseConfig: RerankConfigOptions | undefined,
+  topN: number,
+  query?: string
+): RerankConfigOptions | undefined => {
+  if (baseConfig == undefined) {
+    return baseConfig;
+  }
+  const result: RerankConfigOptions = {
+    ...baseConfig,
+    modelId: process.env.HANA_DB_RERANK_MODEL_ID!,
+    topN,
+  };
+  if (query) {
+    result.query = query;
+  }
+  return result;
+};
+
 describe.each(["Array", "Buffer", undefined] as const)(
   "tests with vectorOutputType=%s",
   (vectorOutputType) => {
@@ -94,199 +121,294 @@ describe.each(["Array", "Buffer", undefined] as const)(
     expect(process.env.HANA_DB_PASSWORD).toBeDefined();
     expect(process.env.HANA_DB_EMBEDDING_MODEL_ID).toBeDefined();
     expect(process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID).toBeDefined();
-    
-    describe.each(
-      [
-        {
-          internalEmbeddingModelId: process.env.HANA_DB_EMBEDDING_MODEL_ID!,
-        },
-        {
-          internalEmbeddingModelId:
-            process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID!,
-          remoteSource: process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE,
-        },
-      ])(
-      "tests with embedding=%o",
-      (embedding) => {
+    expect(process.env.HANA_DB_RERANK_MODEL_ID).toBeDefined();
 
-        beforeAll(async () => {
+    describe.each([
+      {
+        internalEmbeddingModelId: process.env.HANA_DB_EMBEDDING_MODEL_ID!,
+      },
+      {
+        internalEmbeddingModelId:
+          process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID!,
+        remoteSource: process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE,
+      },
+    ])("tests with embedding=%o", (embedding) => {
+      beforeAll(async () => {
+        const connectionParams = createConnectionParams(vectorOutputType);
+        const client = hanaClient.createConnection(connectionParams);
 
-          const connectionParams = createConnectionParams(vectorOutputType);
-          const client = hanaClient.createConnection(connectionParams);
+        const schemaPrefix = "LANGCHAIN_INT_EMB_TEST";
+        await HanaTestUtils.connectToHANA(client);
 
-          const schemaPrefix = "LANGCHAIN_INT_EMB_TEST";
-          await HanaTestUtils.connectToHANA(client);
+        const embeddings = new HanaInternalEmbeddings({ ...embedding });
 
-          const embeddings = new HanaInternalEmbeddings({...embedding });
-
-          config = new Config(
-            client,
-            await HanaTestUtils.generateSchemaName(client, schemaPrefix),
-            embeddings
+        config = new Config(
+          client,
+          await HanaTestUtils.generateSchemaName(client, schemaPrefix),
+          embeddings
+        );
+        if (
+          !(await isInternalEmbeddingAvailable(
+            config.client,
+            config.embeddings
+          ))
+        ) {
+          throw new Error(
+            `Internal embedding function is not available or the model id ${config.embeddings.getModelId()} is wrong`
           );
-          if (
-            !(await isInternalEmbeddingAvailable(
+        }
+        await HanaTestUtils.dropOldTestSchemas(client, schemaPrefix);
+        await HanaTestUtils.createAndSetSchema(
+          config.client,
+          config.schemaName
+        );
+      });
+
+      afterAll(async () => {
+        await HanaTestUtils.dropSchemaIfExists(
+          config.client,
+          config.schemaName
+        );
+        config.client.disconnect();
+      });
+
+      async function vectorDBSetup(vectorColumnType: string) {
+        const args: HanaDBArgs = {
+          connection: config.client,
+          tableName: TABLE_NAME,
+          vectorColumnType,
+        };
+        const vectorDB = new HanaDB(config.embeddings, args);
+        await vectorDB.initialize();
+        expect(vectorDB).toBeDefined();
+        return vectorDB;
+      }
+
+      async function vectorDBTeardown() {
+        await HanaTestUtils.dropTable(config.client, TABLE_NAME);
+      }
+
+      describe.each(["REAL_VECTOR", "HALF_VECTOR"])(
+        "tests with all vector column types",
+        (vectorColumnType) => {
+          test("hanavector add documents", async () => {
+            const vectorDB = await vectorDBSetup(vectorColumnType);
+            await vectorDB.addDocuments(DOCUMENTS);
+            const countResult = await executeQuery(
               config.client,
-              config.embeddings
-            ))
-          ) {
-            throw new Error(
-              `Internal embedding function is not available or the model id ${config.embeddings.getModelId()} is wrong`
+              `SELECT COUNT(*) AS COUNT FROM ${TABLE_NAME}`
             );
-          }
-          await HanaTestUtils.dropOldTestSchemas(client, schemaPrefix);
-          await HanaTestUtils.createAndSetSchema(
-            config.client,
-            config.schemaName
-          );
-        });
+            expect(countResult[0]?.COUNT ?? -1).toBe(DOCUMENTS.length);
 
-        afterAll(async () => {
-          await HanaTestUtils.dropSchemaIfExists(
-            config.client,
-            config.schemaName
-          );
-          config.client.disconnect();
-        });
+            await vectorDBTeardown();
+          });
 
-        async function vectorDBSetup(vectorColumnType: string) {
-          const args: HanaDBArgs = {
-            connection: config.client,
-            tableName: TABLE_NAME,
-            vectorColumnType,
-          };
-          const vectorDB = new HanaDB(config.embeddings, args);
-          await vectorDB.initialize();
-          expect(vectorDB).toBeDefined();
-          return vectorDB;
-        }
+          describe("similarity search tests", () => {
+            describe.each(baseValidRerankConfigs)(
+              "valid rerank config: %j",
+              (baseRerankConfig) => {
+                test("test similarity search simple", async () => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
+                  await vectorDB.addDocuments(DOCUMENTS);
 
-        async function vectorDBTeardown() {
-          await HanaTestUtils.dropTable(config.client, TABLE_NAME);
-        }
+                  const rerankConfig = buildValidRerankConfig(
+                    baseRerankConfig,
+                    1
+                  );
 
-        describe.each(["REAL_VECTOR", "HALF_VECTOR"])(
-          "tests with all vector column types",
-          (vectorColumnType) => {
-            test("hanavector add documents", async () => {
+                  const results = await vectorDB.similaritySearch(
+                    TEXTS[0],
+                    1,
+                    undefined,
+                    undefined,
+                    rerankConfig
+                  );
+
+                  expect(results[0].pageContent).toBe(TEXTS[0]);
+
+                  expect(results[0].pageContent).not.toBe(TEXTS[1]);
+
+                  await vectorDBTeardown();
+                });
+
+                test("similarity search with metadata filter (numeric)", async () => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
+                  await vectorDB.addDocuments(DOCUMENTS);
+
+                  const rerankConfig = buildValidRerankConfig(
+                    baseRerankConfig,
+                    3
+                  );
+
+                  let results = await vectorDB.similaritySearch(
+                    TEXTS[0],
+                    3,
+                    {
+                      start: 100,
+                    },
+                    undefined,
+                    rerankConfig
+                  );
+
+                  expect(results).toHaveLength(1);
+                  expect(results[0].pageContent).toBe(TEXTS[1]);
+                  expect(results[0].metadata.start).toBe(METADATAS[1].start);
+                  expect(results[0].metadata.end).toBe(METADATAS[1].end);
+
+                  results = await vectorDB.similaritySearch(TEXTS[0], 3, {
+                    start: 100,
+                    end: 150,
+                  });
+                  expect(results).toHaveLength(0);
+
+                  results = await vectorDB.similaritySearch(TEXTS[0], 3, {
+                    start: 100,
+                    end: 200,
+                  });
+
+                  expect(results).toHaveLength(1);
+                  expect(results[0].pageContent).toBe(TEXTS[1]);
+                  expect(results[0].metadata.start).toBe(METADATAS[1].start);
+                  expect(results[0].metadata.end).toBe(METADATAS[1].end);
+
+                  await vectorDBTeardown();
+                });
+              }
+            );
+
+            describe("similarity search invalid", () => {
+              const invalidKs = [0, -4];
+
+              test.each(invalidKs)(
+                "throws ValueError for k = %i",
+                async (k) => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
+                  await expect(
+                    vectorDB.similaritySearch(TEXTS[0], k)
+                  ).rejects.toThrow(/must be an integer greater than 0/);
+                  await vectorDBTeardown();
+                }
+              );
+            });
+
+            describe.each([{ query: TEXTS[0], modelId: "non_existent_model" }])(
+              "invalid rerank config non existent model %j",
+              (invalidRerankConfig) => {
+                test("similarity search invalid rerank config", async () => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
+
+                  await expect(
+                    vectorDB.similaritySearch(
+                      TEXTS[0],
+                      3,
+                      undefined,
+                      undefined,
+                      invalidRerankConfig
+                    )
+                  ).rejects.toThrow();
+                  await vectorDBTeardown();
+                });
+
+                test("similarity search with metadata filter (numeric) invalid rerank config", async () => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
+
+                  await expect(
+                    vectorDB.similaritySearch(
+                      TEXTS[0],
+                      3,
+                      { start: 100 },
+                      undefined,
+                      invalidRerankConfig
+                    )
+                  ).rejects.toThrow();
+                  await vectorDBTeardown();
+                });
+              }
+            );
+
+            describe.each([{ query: TEXTS[0], modelId: "" }])(
+              "invalid rerank config empty model id %j",
+              (invalidRerankConfig) => {
+                const expectedErrorMessage =
+                  "modelId must be a non-empty string";
+
+                test("similarity search invalid rerank config", async () => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
+
+                  await expect(
+                    vectorDB.similaritySearch(
+                      TEXTS[0],
+                      3,
+                      undefined,
+                      undefined,
+                      invalidRerankConfig
+                    )
+                  ).rejects.toThrow(expectedErrorMessage);
+                  await vectorDBTeardown();
+                });
+
+                test("similarity search with metadata filter (numeric) invalid rerank config", async () => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
+
+                  await expect(
+                    vectorDB.similaritySearch(
+                      TEXTS[0],
+                      3,
+                      { start: 100 },
+                      undefined,
+                      invalidRerankConfig
+                    )
+                  ).rejects.toThrow(expectedErrorMessage);
+                  await vectorDBTeardown();
+                });
+              }
+            );
+          });
+
+          describe("max marginal relevance search tests", () => {
+            test("max marginal relevance search simple", async () => {
               const vectorDB = await vectorDBSetup(vectorColumnType);
               await vectorDB.addDocuments(DOCUMENTS);
-              const countResult = await executeQuery(
-                config.client,
-                `SELECT COUNT(*) AS COUNT FROM ${TABLE_NAME}`
-              );
-              expect(countResult[0]?.COUNT ?? -1).toBe(DOCUMENTS.length);
 
+              const results = await vectorDB.maxMarginalRelevanceSearch(
+                TEXTS[0],
+                {
+                  k: 2,
+                  fetchK: 20,
+                }
+              );
+
+              expect(results).toHaveLength(2);
+              expect(results[0].pageContent).toBe(TEXTS[0]);
+              expect(results[1].pageContent).not.toBe(TEXTS[0]);
               await vectorDBTeardown();
             });
 
-            describe("similarity search tests", () => {
-              test("test similarity search simple", async () => {
-                const vectorDB = await vectorDBSetup(vectorColumnType);
-                await vectorDB.addDocuments(DOCUMENTS);
+            describe("max marginal relevance search invalid", () => {
+              const invalidCases: Array<[number, number, string]> = [
+                [0, 20, "must be an integer greater than 0"],
+                [-4, 20, "must be an integer greater than 0"],
+                [2, 0, "greater than or equal to 'k'"],
+              ];
 
-                const results = await vectorDB.similaritySearch(TEXTS[0], 1);
+              test.each(invalidCases)(
+                "throws for invalid (k=%i, fetchK=%i)",
+                async (k, fetchK, expectedMessage) => {
+                  const vectorDB = await vectorDBSetup(vectorColumnType);
+                  await expect(
+                    vectorDB.maxMarginalRelevanceSearch(TEXTS[0], {
+                      k,
+                      fetchK,
+                    })
+                  ).rejects.toThrow(expectedMessage);
 
-                expect(results[0].pageContent).toBe(TEXTS[0]);
-
-                expect(results[0].pageContent).not.toBe(TEXTS[1]);
-
-                await vectorDBTeardown();
-              });
-
-              test("similarity search with metadata filter (numeric)", async () => {
-                const vectorDB = await vectorDBSetup(vectorColumnType);
-                await vectorDB.addDocuments(DOCUMENTS);
-
-                let results = await vectorDB.similaritySearch(TEXTS[0], 3, {
-                  start: 100,
-                });
-
-                expect(results).toHaveLength(1);
-                expect(results[0].pageContent).toBe(TEXTS[1]);
-                expect(results[0].metadata.start).toBe(METADATAS[1].start);
-                expect(results[0].metadata.end).toBe(METADATAS[1].end);
-
-                results = await vectorDB.similaritySearch(TEXTS[0], 3, {
-                  start: 100,
-                  end: 150,
-                });
-                expect(results).toHaveLength(0);
-
-                results = await vectorDB.similaritySearch(TEXTS[0], 3, {
-                  start: 100,
-                  end: 200,
-                });
-
-                expect(results).toHaveLength(1);
-                expect(results[0].pageContent).toBe(TEXTS[1]);
-                expect(results[0].metadata.start).toBe(METADATAS[1].start);
-                expect(results[0].metadata.end).toBe(METADATAS[1].end);
-
-                await vectorDBTeardown();
-              });
-
-              describe("similarity search invalid", () => {
-                const invalidKs = [0, -4];
-
-                test.each(invalidKs)(
-                  "throws ValueError for k = %i",
-                  async (k) => {
-                    const vectorDB = await vectorDBSetup(vectorColumnType);
-                    await expect(
-                      vectorDB.similaritySearch(TEXTS[0], k)
-                    ).rejects.toThrow(/must be an integer greater than 0/);
-                    await vectorDBTeardown();
-                  }
-                );
-              });
+                  await vectorDBTeardown();
+                }
+              );
             });
-
-            describe("max marginal relevance search tests", () => {
-              test("max marginal relevance search simple", async () => {
-                const vectorDB = await vectorDBSetup(vectorColumnType);
-                await vectorDB.addDocuments(DOCUMENTS);
-
-                const results = await vectorDB.maxMarginalRelevanceSearch(
-                  TEXTS[0],
-                  {
-                    k: 2,
-                    fetchK: 20,
-                  }
-                );
-
-                expect(results).toHaveLength(2);
-                expect(results[0].pageContent).toBe(TEXTS[0]);
-                expect(results[1].pageContent).not.toBe(TEXTS[0]);
-                await vectorDBTeardown();
-              });
-
-              describe("max marginal relevance search invalid", () => {
-                const invalidCases: Array<[number, number, string]> = [
-                  [0, 20, "must be an integer greater than 0"],
-                  [-4, 20, "must be an integer greater than 0"],
-                  [2, 0, "greater than or equal to 'k'"],
-                ];
-
-                test.each(invalidCases)(
-                  "throws for invalid (k=%i, fetchK=%i)",
-                  async (k, fetchK, expectedMessage) => {
-                    const vectorDB = await vectorDBSetup(vectorColumnType);
-                    await expect(
-                      vectorDB.maxMarginalRelevanceSearch(TEXTS[0], {
-                        k,
-                        fetchK,
-                      })
-                    ).rejects.toThrow(expectedMessage);
-
-                    await vectorDBTeardown();
-                  }
-                );
-              });
-            });
-          }
-        );
-      }
-    );
+          });
+        }
+      );
+    });
   }
 );
