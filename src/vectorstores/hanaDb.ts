@@ -16,10 +16,7 @@ import {
   validateK,
   validateKAndFetchK,
 } from "../hanautils.js";
-import {
-  CreateWhereClause,
-  Filter,
-} from "./createWhereClause.js";
+import { CreateWhereClause, Filter } from "./createWhereClause.js";
 import {
   generateCrossEncodingSqlAndParams,
   sanitizeMetadataKeys,
@@ -170,8 +167,10 @@ export class HanaDB extends VectorStore {
           keywordColumns.add(parentKey);
         }
       } else if (["$and", "$or"].includes(key)) {
-        if (!Array.isArray(value)){
-          throw new Error(`Expected an array of at least two operands for operator=${key}, but got operands=${JSON.stringify(value)}`);
+        if (!Array.isArray(value)) {
+          throw new Error(
+            `Expected an array of at least two operands for operator=${key}, but got operands=${JSON.stringify(value)}`
+          );
         }
         (value as this["FilterType"][]).forEach((subfilter) =>
           this.recurseFiltersHelper(keywordColumns, subfilter)
@@ -1154,7 +1153,9 @@ export class HanaDB extends VectorStore {
         END;
         `;
         const stmForCallMapMerge = await prepareQuery(client, callMapMergeSql);
-        await executeStatement(stmForCallMapMerge, [this.internalEmbeddingModelId]);
+        await executeStatement(stmForCallMapMerge, [
+          this.internalEmbeddingModelId,
+        ]);
 
         const fetchEmbeddingsSql = `
         SELECT VEC_VECTOR FROM "${tempTableName}" ORDER BY ID
@@ -1175,11 +1176,11 @@ export class HanaDB extends VectorStore {
       const metadata = Array.isArray(metadatas) ? metadatas[i] : metadatas;
       const [remainingMetadata, specialMetadata] =
         this.splitOffSpecialMetadata(metadata);
-
+      sanitizeMetadataKeys(Object.keys(remainingMetadata));
       // Prepare the SQL parameters
       return [
         text,
-        JSON.stringify(this.sanitizeMetadataKeys(remainingMetadata)),
+        JSON.stringify(remainingMetadata),
         vectors[i],
         ...specialMetadata,
       ];
