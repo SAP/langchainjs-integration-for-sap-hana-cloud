@@ -1124,7 +1124,7 @@ export class HanaDB extends VectorStore {
       const uid = crypto.randomUUID().replace(/-/g, "_");
       const tempFuncName = `F_VECTOR_EMBEDDING_${uid}`;
       const createMapMergeFunctionSql = `
-        CREATE OR REPLACE FUNCTION "${tempFuncName}"(
+        CREATE FUNCTION "${tempFuncName}"(
             IN i_id INT,
             IN i_text NCLOB,
             IN i_model_id NVARCHAR(5000)
