@@ -16,10 +16,7 @@ import {
   validateK,
   validateKAndFetchK,
 } from "../hanautils.js";
-import {
-  CreateWhereClause,
-  Filter,
-} from "./createWhereClause.js";
+import { CreateWhereClause, Filter } from "./createWhereClause.js";
 import {
   generateCrossEncodingSqlAndParams,
   sanitizeMetadataKeys,
@@ -170,8 +167,10 @@ export class HanaDB extends VectorStore {
           keywordColumns.add(parentKey);
         }
       } else if (["$and", "$or"].includes(key)) {
-        if (!Array.isArray(value)){
-          throw new Error(`Expected an array of at least two operands for operator=${key}, but got operands=${JSON.stringify(value)}`);
+        if (!Array.isArray(value)) {
+          throw new Error(
+            `Expected an array of at least two operands for operator=${key}, but got operands=${JSON.stringify(value)}`
+          );
         }
         (value as this["FilterType"][]).forEach((subfilter) =>
           this.recurseFiltersHelper(keywordColumns, subfilter)
@@ -946,15 +945,26 @@ export class HanaDB extends VectorStore {
    * @param documents Array of Document instances to be added to the table.
    * @returns Promise that resolves when the documents are added.
    */
-  async addDocuments(documents: Document[]): Promise<void> {
+  async addDocuments(
+    documents: Document[],
+    options?: { useMapMerge?: boolean }
+  ): Promise<void> {
+    const useMapMerge = options?.useMapMerge ?? false;
     // If using internal embeddings, we do NOT call embedDocuments() from Node.
     if (this.useInternalEmbeddings) {
+      if (useMapMerge) {
+        return this.addDocumentsWithMapMergeUsingInternalEmbedding(documents);
+      }
       return this.addDocumentsUsingInternalEmbedding(documents);
+    } else {
+      if (useMapMerge) {
+        throw new Error("map merge cannot be used with external embeddings");
+      }
+      // Otherwise, default (external) approach:
+      const texts = documents.map((doc) => doc.pageContent);
+      const vectors = await this.embeddings.embedDocuments(texts);
+      return this.addVectors(vectors, documents);
     }
-    // Otherwise, default (external) approach:
-    const texts = documents.map((doc) => doc.pageContent);
-    const vectors = await this.embeddings.embedDocuments(texts);
-    return this.addVectors(vectors, documents);
   }
 
   /**
@@ -1058,6 +1068,138 @@ export class HanaDB extends VectorStore {
   }
 
   /**
+   * Adds documents with map merge insertion using internal embedding function.
+   *
+   * This method constructs an SQL INSERT statement that leverages the
+   * database's internal VECTOR_EMBEDDING function to generate embeddings
+   * on the server side.
+   *
+   * @param documents - Array of Document objects to be added.
+   * @returns Promise that resolves when the documents are added.
+   */
+  private async addDocumentsWithMapMergeUsingInternalEmbedding(
+    documents: Document[]
+  ): Promise<void> {
+    const texts = documents.map((doc) => doc.pageContent);
+    const metadatas = documents.map((doc) => doc.metadata);
+    const client = this.connection;
+    let vectors;
+
+    const tempTableName = `#${this.tableName}_TEMP`;
+    const createTempTableSql = `
+      CREATE LOCAL TEMPORARY COLUMN TABLE "${tempTableName}" (
+              ID INT,
+              "VEC_TEXT" NCLOB,
+              "VEC_VECTOR" ${this.vectorColumnType}
+      )
+    `;
+    await executeQuery(client, createTempTableSql);
+
+    try {
+      const insertIntoTempTableSql = `
+      INSERT INTO "${tempTableName}" (ID, "VEC_TEXT", "VEC_VECTOR")
+      VALUES (?,?,NULL)
+      `;
+      const stmForTempInsert = await prepareQuery(
+        client,
+        insertIntoTempTableSql
+      );
+      const sqlParamsForTempInsert: HanaParameterType[][] = texts.map(
+        (text, i) => {
+          return [i, text];
+        }
+      );
+      await executeBatchStatement(stmForTempInsert, sqlParamsForTempInsert);
+
+      let vectorEmbeddingSql;
+      if (!this.internalEmbeddingRemoteSource) {
+        vectorEmbeddingSql = `VECTOR_EMBEDDING(:i_text, 'DOCUMENT', :i_model_id)`;
+      } else {
+        vectorEmbeddingSql = `VECTOR_EMBEDDING(:i_text, 'DOCUMENT', :i_model_id, "${this.internalEmbeddingRemoteSource}")`;
+      }
+      vectorEmbeddingSql =
+        this.convertVectorEmbeddingToColumnType(vectorEmbeddingSql);
+
+      const uid = crypto.randomUUID().replace(/-/g, "_");
+      const tempFuncName = `F_VECTOR_EMBEDDING_${uid}`;
+      const createMapMergeFunctionSql = `
+        CREATE FUNCTION "${tempFuncName}"(
+            IN i_id INT,
+            IN i_text NCLOB,
+            IN i_model_id NVARCHAR(5000)
+        )
+        RETURNS TABLE("ID" INT, "PAL_EMBEDDING" ${this.vectorColumnType})
+        LANGUAGE SQLSCRIPT READS SQL DATA AS
+        BEGIN
+            RETURN 
+                SELECT :i_id AS "ID", 
+                    ${vectorEmbeddingSql} AS "PAL_EMBEDDING"
+                FROM DUMMY;
+        END;
+      `;
+      await executeQuery(client, createMapMergeFunctionSql);
+
+      try {
+        const callMapMergeSql = `
+        DO(IN i_model_id NVARCHAR(5000) => ?)
+        BEGIN
+            dat = SELECT "ID", "VEC_TEXT", "VEC_VECTOR" FROM "${tempTableName}";
+            o_res = MAP_MERGE(:dat, "${tempFuncName}"(:dat."ID", :dat."VEC_TEXT", :i_model_id));
+            MERGE INTO "${tempTableName}" AS dat
+            USING :o_res AS upd
+            ON dat."ID" = upd."ID"
+            WHEN MATCHED THEN
+                UPDATE SET dat."VEC_VECTOR" = upd."PAL_EMBEDDING";
+        END;
+        `;
+        const stmForCallMapMerge = await prepareQuery(client, callMapMergeSql);
+        await executeStatement(stmForCallMapMerge, [
+          this.internalEmbeddingModelId,
+        ]);
+
+        const fetchEmbeddingsSql = `
+        SELECT VEC_VECTOR FROM "${tempTableName}" ORDER BY ID
+        `;
+        const rows = await executeQuery(client, fetchEmbeddingsSql);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        vectors = rows.map((row: any) =>
+          this.handleVectorOutputType(row.VEC_VECTOR)
+        );
+      } finally {
+        await executeQuery(client, `DROP FUNCTION "${tempFuncName}"`);
+      }
+    } finally {
+      await executeQuery(client, `DROP TABLE "${tempTableName}"`);
+    }
+
+    const sqlParams: HanaParameterType[][] = texts.map((text, i) => {
+      const metadata = Array.isArray(metadatas) ? metadatas[i] : metadatas;
+      const [remainingMetadata, specialMetadata] =
+        this.splitOffSpecialMetadata(metadata);
+      sanitizeMetadataKeys(Object.keys(remainingMetadata));
+      // Prepare the SQL parameters
+      return [
+        text,
+        JSON.stringify(remainingMetadata),
+        vectors[i],
+        ...specialMetadata,
+      ];
+    });
+    // Build the column list for the INSERT statement.
+    const specificMetadataColumnsString =
+      this.getSpecificMetadataColumnsString();
+    const extraPlaceholders = this.specificMetadataColumns
+      .map(() => ", ?")
+      .join("");
+
+    // Insert data into the table, bulk insert.
+    const sqlStr = `INSERT INTO "${this.tableName}" ("${this.contentColumn}", "${this.metadataColumn}", "${this.vectorColumn}"${specificMetadataColumnsString})
+                    VALUES (?, ?, ?${extraPlaceholders});`;
+    const stm = await prepareQuery(client, sqlStr);
+    await executeBatchStatement(stm, sqlParams);
+  }
+
+  /**
    * Static method to create a HanaDB instance from raw texts. This method embeds the documents,
    * creates a table if it does not exist, and adds the documents to the table.
    * @param texts Array of text documents to add.
@@ -1070,7 +1212,8 @@ export class HanaDB extends VectorStore {
     texts: string[],
     metadatas: object[] | object,
     embeddings: EmbeddingsInterface,
-    dbConfig: HanaDBArgs
+    dbConfig: HanaDBArgs,
+    options?: { useMapMerge?: boolean }
   ): Promise<HanaDB> {
     const docs: Document[] = [];
     for (let i = 0; i < texts.length; i += 1) {
@@ -1081,7 +1224,7 @@ export class HanaDB extends VectorStore {
       });
       docs.push(newDoc);
     }
-    return HanaDB.fromDocuments(docs, embeddings, dbConfig);
+    return HanaDB.fromDocuments(docs, embeddings, dbConfig, options);
   }
 
   /**
@@ -1095,11 +1238,12 @@ export class HanaDB extends VectorStore {
   static async fromDocuments(
     docs: Document[],
     embeddings: EmbeddingsInterface,
-    dbConfig: HanaDBArgs
+    dbConfig: HanaDBArgs,
+    options?: { useMapMerge?: boolean }
   ): Promise<HanaDB> {
     const instance = new HanaDB(embeddings, dbConfig);
     await instance.initialize();
-    await instance.addDocuments(docs);
+    await instance.addDocuments(docs, options);
     return instance;
   }
 
