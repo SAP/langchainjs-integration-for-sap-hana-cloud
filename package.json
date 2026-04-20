@@ -1,6 +1,6 @@
 {
   "name": "@sap/hana-langchain",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Integrates LangChain.js with SAP HANA Cloud to make use of vector search, knowledge graph, and further in-database capabilities as part of LLM-driven applications.",
   "type": "module",
   "engines": {
@@ -36,32 +36,32 @@
     "sparqljs": "^3.7.4"
   },
   "peerDependencies": {
-    "@langchain/classic": "^1.0.29",
-    "@langchain/core": "^1.1.39",
-    "langchain": "^1.3.1"
+    "@langchain/classic": "^1.0.31",
+    "@langchain/core": "^1.1.40",
+    "langchain": "^1.3.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
-    "@langchain/core": "^1.1.39",
+    "@langchain/core": "^1.1.40",
     "@langchain/scripts": "^0.1.3",
     "@tsconfig/recommended": "^1.0.13",
     "@types/node": "^24.12.2",
     "@types/sparqljs": "^3.1.12",
     "dedent": "^1.7.2",
-    "dotenv": "^17.4.1",
+    "dotenv": "^17.4.2",
     "dpdm": "^3.15.1",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-no-instanceof": "^1.0.1",
     "eslint-plugin-prettier": "^5.5.5",
-    "langchain": "^1.3.1",
-    "prettier": "^3.8.2",
+    "langchain": "^1.3.3",
+    "prettier": "^3.8.3",
     "rdf-isomorphic": "^2.0.1",
-    "rollup": "^4.60.1",
+    "rollup": "^4.60.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.58.1",
+    "typescript-eslint": "^8.58.2",
     "vitest": "^3.2.4"
   },
   "publishConfig": {
