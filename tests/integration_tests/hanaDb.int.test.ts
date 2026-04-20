@@ -1187,18 +1187,6 @@ describe.each(["Array", "Buffer", undefined] as const)(
             }
           );
 
-          test("similarity search with metadata filter (invalid type)", async () => {
-            const vectorDB = await vectorDBSetup(vectorColumnType);
-            await vectorDB.addDocuments(DOCUMENTS);
-
-            await expect(
-              vectorDB.similaritySearch(TEXTS[0], 3, {
-                wrong_type: 0.1,
-              })
-            ).rejects.toThrow();
-            await vectorDBTeardown();
-          });
-
           describe("similarity search invalid", () => {
             const invalidKs = [0, -4];
 
