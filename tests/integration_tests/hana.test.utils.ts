@@ -20,7 +20,7 @@ export class HanaTestUtils {
         });
       });
     } catch (error) {
-      // console.error("Connect error", error);
+      console.error("Connect error", error);
     }
   }
 

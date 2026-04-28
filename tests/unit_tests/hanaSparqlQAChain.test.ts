@@ -55,12 +55,13 @@ const EXTRACT_SPARQL_TEST_CASES: ExtractSparqlTestCase[] = [
   },
 ];
 
-
 describe("extract sparql tests", () => {
-  EXTRACT_SPARQL_TEST_CASES.forEach(({ inputQuery, expectedResult, testCaseName }) => {
-    it(`should correctly extract SPARQL for test case: ${testCaseName}`, () => {
-      const result = HanaSparqlQAChain.extractSparql(inputQuery);
-      expect(result.trim()).toBe(expectedResult.trim());
-    });
-  });
+  EXTRACT_SPARQL_TEST_CASES.forEach(
+    ({ inputQuery, expectedResult, testCaseName }) => {
+      it(`should correctly extract SPARQL for test case: ${testCaseName}`, () => {
+        const result = HanaSparqlQAChain.extractSparql(inputQuery);
+        expect(result.trim()).toBe(expectedResult.trim());
+      });
+    }
+  );
 });

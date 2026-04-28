@@ -735,7 +735,7 @@ export class HanaDB extends VectorStore {
         "SELECT CLOUD_VERSION FROM SYS.M_DATABASE;"
       );
       return rows[0]?.CLOUD_VERSION;
-    } catch (err) {
+    } catch {
       return undefined;
     }
   }

@@ -5,6 +5,7 @@ import { OpenAIEmbeddings } from "@langchain/openai";
 // table "test_fromDocs" is already created with the previous example.
 // Now, we will use this existing table to create indexes and perform similarity search.
 
+/* eslint-disable no-process-env */
 const connectionParams = {
   host: process.env.HANA_DB_ADDRESS,
   port: process.env.HANA_DB_PORT,
@@ -55,7 +56,7 @@ await vectorStoreCosine.createHnswIndex(); // If no other parameters are specifi
 
 // Create HNSW index with Euclidean (L2) distance
 await vectorStoreL2.createHnswIndex({
-  indexName: "hnsw_l2_index", 
+  indexName: "hnsw_l2_index",
   efSearch: 400, // Max number of neighbors per graph node (valid range: 4 to 1000)
   m: 50, // Max number of candidates during graph construction (valid range: 1 to 100000)
   efConstruction: 150, // Min number of candidates during the search (valid range: 1 to 100000)

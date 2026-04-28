@@ -1,12 +1,10 @@
 import hanaClient from "@sap/hana-client";
-import {
-  HanaDB,
-  HanaDBArgs,
-} from "@sap/hana-langchain";
+import { HanaDB, HanaDBArgs } from "@sap/hana-langchain";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { TextLoader } from "@langchain/classic/document_loaders/fs/text";
 import { CharacterTextSplitter } from "@langchain/textsplitters";
 
+/* eslint-disable no-process-env */
 const connectionParams = {
   host: process.env.HANA_DB_ADDRESS,
   port: process.env.HANA_DB_PORT,

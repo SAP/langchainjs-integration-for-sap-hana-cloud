@@ -3,6 +3,7 @@ import hanaClient from "@sap/hana-client";
 import { Document } from "@langchain/core/documents";
 import { HanaDB, HanaDBArgs } from "@sap/hana-langchain";
 
+/* eslint-disable no-process-env */
 const connectionParams = {
   host: process.env.HANA_DB_ADDRESS,
   port: process.env.HANA_DB_PORT,
@@ -179,7 +180,7 @@ printFilterResult(
 /* Filter: {"name":{"$contains":"bo"}}
 <empty result> */
 
-advancedFilter = {"name": {"$contains": "Adam Johnson"}}
+advancedFilter = { name: { $contains: "Adam Johnson" } };
 console.log(`Filter: ${JSON.stringify(advancedFilter)}`);
 printFilterResult(
   await vectorStore.similaritySearch("just testing", 5, advancedFilter)
@@ -187,7 +188,7 @@ printFilterResult(
 /* Filter: {'name': {'$contains': 'Adam Johnson'}}
 <empty result> */
 
-advancedFilter = {"name": {"$contains": "Adam Smith"}}
+advancedFilter = { name: { $contains: "Adam Smith" } };
 console.log(`Filter: ${JSON.stringify(advancedFilter)}`);
 printFilterResult(
   await vectorStore.similaritySearch("just testing", 5, advancedFilter)

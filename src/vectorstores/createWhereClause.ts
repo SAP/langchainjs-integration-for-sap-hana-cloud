@@ -1,5 +1,4 @@
 import { Comparator as BaseComparator } from "@langchain/core/structured_query";
-import { HanaDB } from "./hanaDb.js";
 
 // Base value types that can be used in comparisons
 export type ComparisonRValue =
@@ -58,11 +57,14 @@ class FilterOperand {
     } else if (typeof value === "string") {
       this.value = value;
       this.theType = "str";
+      // eslint-disable-next-line no-instanceof/no-instanceof
     } else if (value instanceof Date) {
       this.value = value.toISOString().split("T")[0];
       this.theType = "date";
     } else {
-      throw new Error(`Operand cannot be created from ${JSON.stringify(value)}`);
+      throw new Error(
+        `Operand cannot be created from ${JSON.stringify(value)}`
+      );
     }
   }
 
@@ -116,9 +118,7 @@ function determineFilterOperands(
     );
   }
   if (operands.length === 0) {
-    throw new Error(
-      `Operator ${operator} expects at least 1 operand`
-    );
+    throw new Error(`Operator ${operator} expects at least 1 operand`);
   }
   return operands.map((op) => determineSingleFilterOperand(operator, op));
 }
@@ -137,40 +137,38 @@ function determineSingleFilterOperand(
   try {
     return new FilterOperand(operand);
   } catch (e) {
+    // eslint-disable-next-line no-instanceof/no-instanceof
     const errorMessage = e instanceof Error ? e.message : String(e);
     throw new Error(`Operator ${operator}: ${errorMessage}`);
   }
 }
 
 function sqlSerializeLogicalClauses(
-    sqlOperator: string,
-    sqlClauses: string[]
-  ): string {
-    if (!["AND", "OR"].includes(sqlOperator)) {
-      throw new Error(
-        `${sqlOperator} is not in supported operators: [AND, OR]`
-      );
-    }
-    if (sqlClauses.length === 0) {
-      throw new Error("sqlClauses is empty");
-    }
-    if (sqlClauses.some((clause) => !clause)) {
-      throw new Error(
-        `Empty sql clause found in ${JSON.stringify(sqlClauses)}`
-      );
-    }
-    if (sqlClauses.length === 1) {
-      return sqlClauses[0];
-    }
-    return sqlClauses.map((clause) => `(${clause})`).join(` ${sqlOperator} `);
+  sqlOperator: string,
+  sqlClauses: string[]
+): string {
+  if (!["AND", "OR"].includes(sqlOperator)) {
+    throw new Error(`${sqlOperator} is not in supported operators: [AND, OR]`);
   }
+  if (sqlClauses.length === 0) {
+    throw new Error("sqlClauses is empty");
+  }
+  if (sqlClauses.some((clause) => !clause)) {
+    throw new Error(`Empty sql clause found in ${JSON.stringify(sqlClauses)}`);
+  }
+  if (sqlClauses.length === 1) {
+    return sqlClauses[0];
+  }
+  return sqlClauses.map((clause) => `(${clause})`).join(` ${sqlOperator} `);
+}
 
 export class CreateWhereClause {
   private readonly specificMetadataColumns: string[];
 
   private readonly metadataColumn: string;
 
-  constructor(hanaDb: HanaDB) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(hanaDb: any) {
     this.specificMetadataColumns = hanaDb.getSpecificMetadataColumns();
     this.metadataColumn = hanaDb.getMetadataColumn();
   }
@@ -227,6 +225,7 @@ export class CreateWhereClause {
       } else if (
         value !== null &&
         typeof value === "object" &&
+        // eslint-disable-next-line no-instanceof/no-instanceof
         !(value instanceof Date)
       ) {
         if (Object.keys(value).length !== 1) {
@@ -248,11 +247,12 @@ export class CreateWhereClause {
       } else {
         // Value represents a typed SQL value (implicit $eq operator).
         let operand: FilterOperand;
-        try{
+        try {
           operand = new FilterOperand(value);
-        }
-        catch(err) {
-          throw new Error(`Implicit operator $eq received unsupported operand: ${JSON.stringify(value)}`);
+        } catch {
+          throw new Error(
+            `Implicit operator $eq received unsupported operand: ${JSON.stringify(value)}`
+          );
         }
         const sqlOperand = new SqlOperand(operand);
         sqlClause = `${this.createSelector(key)} = ${sqlOperand.placeholder}`;
@@ -262,10 +262,7 @@ export class CreateWhereClause {
       parameters.push(...queryParams);
     }
 
-    return [
-      sqlSerializeLogicalClauses("AND", statements),
-      parameters,
-    ];
+    return [sqlSerializeLogicalClauses("AND", statements), parameters];
   }
 
   private sqlSerializeColumnOperation(
@@ -278,7 +275,7 @@ export class CreateWhereClause {
 
     if (operator === "$contains") {
       const operand = determineSingleFilterOperand(operator, operands);
-      if(operand.theType !== "str" || !operand.value) {
+      if (operand.theType !== "str" || !operand.value) {
         throw new Error(
           `Operator $contains expects a non-empty string operand, but got ${JSON.stringify(operands)}`
         );
@@ -331,7 +328,7 @@ export class CreateWhereClause {
       }[operator];
       const filterOperands = determineFilterOperands(operator, operands);
       for (const op of filterOperands) {
-        if(op.theType !== filterOperands[0].theType) {
+        if (op.theType !== filterOperands[0].theType) {
           throw new Error(
             `Operator ${operator} expects operands of the same type, but got ${JSON.stringify(operands)}`
           );
@@ -366,7 +363,7 @@ export class CreateWhereClause {
 
     if (["$gt", "$gte", "$lt", "$lte"].includes(operator)) {
       const operand = determineSingleFilterOperand(operator, operands);
-      if(!["int", "float", "str", "date"].includes(operand.theType)) {
+      if (!["int", "float", "str", "date"].includes(operand.theType)) {
         throw new Error(
           `Operator ${operator} expects operand of type (int, float, str, date), but got ${JSON.stringify(operands)}`
         );
@@ -375,7 +372,7 @@ export class CreateWhereClause {
         $gt: ">",
         $gte: ">=",
         $lt: "<",
-        $lte: "<="
+        $lte: "<=",
       }[operator];
       const sqlOperand = new SqlOperand(operand);
       const statement = `${selector} ${sqlOperator} ${sqlOperand.placeholder}`;
@@ -383,16 +380,14 @@ export class CreateWhereClause {
     }
 
     // Unknown operation if we reach this point.
-    throw new Error(
-      `Operator ${operator} is not supported`
-    );
+    throw new Error(`Operator ${operator} is not supported`);
   }
 
   private sqlSerializeLogicalOperation(
     operator: LogicalOperator,
     operands: Filter[]
   ): [string, string[]] {
-    if (!Array.isArray(operands) || (operands.length < 2)) {
+    if (!Array.isArray(operands) || operands.length < 2) {
       throw new Error(
         `Expected an array of at least two operands for operator=${operator}, but got operands=${JSON.stringify(operands)}`
       );
@@ -414,18 +409,13 @@ export class CreateWhereClause {
       };
 
       return [
-        sqlSerializeLogicalClauses(
-          logicalOperatorsToSql[operator],
-          sqlClauses
-        ),
+        sqlSerializeLogicalClauses(logicalOperatorsToSql[operator], sqlClauses),
         queryParams,
       ];
     }
 
     // if we reach this point, the operation is not supported
-    throw new Error(
-      `Operator ${operator} is not supported`
-    );
+    throw new Error(`Operator ${operator} is not supported`);
   }
 
   private createSelector(column: string): string {

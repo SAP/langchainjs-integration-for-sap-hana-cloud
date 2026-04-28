@@ -3,11 +3,9 @@ import hanaClient from "@sap/hana-client";
 // or import another node.js driver
 // import hanaClient from "hdb"
 import { Document } from "@langchain/core/documents";
-import {
-  HanaDB,
-  HanaDBArgs,
-} from "@sap/hana-langchain";
+import { HanaDB, HanaDBArgs } from "@sap/hana-langchain";
 
+/* eslint-disable no-process-env */
 const connectionParams = {
   host: process.env.HANA_DB_ADDRESS,
   port: process.env.HANA_DB_PORT,
@@ -46,7 +44,7 @@ await vectorStore.delete({ filter: {} });
 // Add simple documents
 const simpleDocs = [
   new Document({ pageContent: "Hello world" }),
-  new Document({ pageContent: "Other docs"})
+  new Document({ pageContent: "Other docs" }),
 ];
 await vectorStore.addDocuments(simpleDocs);
 

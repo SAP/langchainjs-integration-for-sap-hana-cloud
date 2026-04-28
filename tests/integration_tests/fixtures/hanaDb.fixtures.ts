@@ -63,7 +63,7 @@ type FilteringTestCase = [
   filter: Filter,
   matchingIds: number[],
   expectedWhereClause: string,
-  expectedParams: (string | boolean | number | Date)[]
+  expectedParams: (string | boolean | number | Date)[],
 ];
 
 type ErrorFilteringTestCase = [filter: Filter, expectedError: string];
@@ -79,7 +79,12 @@ export const TYPE_1_FILTERING_TEST_CASES: FilteringTestCase[] = [
     [],
   ],
   // String field
-  [{ name: "adam" }, [1], "WHERE JSON_VALUE(VEC_META, '$.name') = TO_NVARCHAR(?)", ["adam"]],
+  [
+    { name: "adam" },
+    [1],
+    "WHERE JSON_VALUE(VEC_META, '$.name') = TO_NVARCHAR(?)",
+    ["adam"],
+  ],
   // String field (empty string)
   [
     { name: "" },
@@ -134,10 +139,10 @@ export const TYPE_2_FILTERING_TEST_CASES: FilteringTestCase[] = [
   ],
   // $ne with null value
   [
-      { sadness: { $ne: null } },
-      [1, 2],
-      "WHERE JSON_VALUE(VEC_META, '$.sadness') IS NOT NULL",
-      [],
+    { sadness: { $ne: null } },
+    [1, 2],
+    "WHERE JSON_VALUE(VEC_META, '$.sadness') IS NOT NULL",
+    [],
   ],
   [
     { id: { $gt: 0 } },
@@ -170,8 +175,18 @@ export const TYPE_2_FILTERING_TEST_CASES: FilteringTestCase[] = [
     [1],
   ],
   // Repeat all the same tests with name (string column)
-  [{ name: "adam" }, [1], "WHERE JSON_VALUE(VEC_META, '$.name') = TO_NVARCHAR(?)", ["adam"]],
-  [{ name: "bob" }, [2], "WHERE JSON_VALUE(VEC_META, '$.name') = TO_NVARCHAR(?)", ["bob"]],
+  [
+    { name: "adam" },
+    [1],
+    "WHERE JSON_VALUE(VEC_META, '$.name') = TO_NVARCHAR(?)",
+    ["adam"],
+  ],
+  [
+    { name: "bob" },
+    [2],
+    "WHERE JSON_VALUE(VEC_META, '$.name') = TO_NVARCHAR(?)",
+    ["bob"],
+  ],
   [
     { name: { $eq: "adam" } },
     [1],
@@ -432,7 +447,7 @@ export const ERROR_FILTERING_TEST_CASES: ErrorFilteringTestCase[] = [
   // These involve invalid filter formats that should raise errors
   // more than one operator at the same level
   [
-    { name: { $eq: "adam", $ne: "bob" } } ,
+    { name: { $eq: "adam", $ne: "bob" } },
     'Expecting a single entry \'operator: operands\', but got {"$eq":"adam","$ne":"bob"}',
   ],
   // logical operators
@@ -441,30 +456,30 @@ export const ERROR_FILTERING_TEST_CASES: ErrorFilteringTestCase[] = [
     'Expected an array of at least two operands for operator=$or, but got operands=[{"id":1}]',
   ],
   [
-    { $and: "adam" } ,
+    { $and: "adam" },
     'Expected an array of at least two operands for operator=$and, but got operands="adam"',
   ],
   // contains operator
   [
-    { tags: { $contains: "" } } ,
+    { tags: { $contains: "" } },
     'Operator $contains expects a non-empty string operand, but got ""',
   ],
   [
-    { tags: { $contains: 5 } } ,
+    { tags: { $contains: 5 } },
     "Operator $contains expects a non-empty string operand, but got 5",
   ],
   // like operator
   [
-    { name: { $like: false } } ,
+    { name: { $like: false } },
     "Operator $like expects a string operand, but got false",
   ],
   // between operator
   [
-    { id: { $between: [1] } } ,
+    { id: { $between: [1] } },
     "Operator $between expects 2 operands, but got [1]",
   ],
   [
-    { id: { $between: [1, "2"] } } ,
+    { id: { $between: [1, "2"] } },
     'Operator $between expects operands of the same type, but got [1,"2"]',
   ],
   [
@@ -473,50 +488,44 @@ export const ERROR_FILTERING_TEST_CASES: ErrorFilteringTestCase[] = [
     "Operator $between expects operands of the same type, but got [1,2.1]",
   ],
   [
-    { id: { $between: [false, true] } } ,
+    { id: { $between: [false, true] } },
     "Operator $between expects operand types (int, float, str, date), but got [false,true]",
   ],
   // in operators
+  [{ name: { $in: [] } }, "Operator $in expects at least 1 operand"],
   [
-    { name: { $in: [] } } ,
-    "Operator $in expects at least 1 operand",
-  ],
-  [
-    { name: { $in: ["adam", 1] } } ,
+    { name: { $in: ["adam", 1] } },
     'Operator $in expects operands of the same type, but got ["adam",1]',
   ],
+  [{ name: { $nin: [] } }, "Operator $nin expects at least 1 operand"],
   [
-    { name: { $nin: [] } } ,
-    "Operator $nin expects at least 1 operand",
-  ],
-  [
-    { name: { $nin: ["adam", 1] } } ,
+    { name: { $nin: ["adam", 1] } },
     'Operator $nin expects operands of the same type, but got ["adam",1]',
   ],
   // eq and ne operators
   [
-    { name: { $eq: ["unexpected", "list"] } } ,
+    { name: { $eq: ["unexpected", "list"] } },
     'Operator $eq expects a single operand, but got object: ["unexpected","list"]',
   ],
   [
-    { name: { $ne: ["unexpected", "list"] } } ,
+    { name: { $ne: ["unexpected", "list"] } },
     'Operator $ne expects a single operand, but got object: ["unexpected","list"]',
   ],
   // gt, gte, lt, lte operators
   [
-    { name: { $gt: ["unexpected", "list"] } } ,
+    { name: { $gt: ["unexpected", "list"] } },
     'Operator $gt expects a single operand, but got object: ["unexpected","list"]',
   ],
   [
-    { name: { $gte: false } } ,
+    { name: { $gte: false } },
     "Operator $gte expects operand of type (int, float, str, date), but got false",
   ],
   [
-    { name: { $lt: ["unexpected", "list"] } } ,
+    { name: { $lt: ["unexpected", "list"] } },
     'Operator $lt expects a single operand, but got object: ["unexpected","list"]',
   ],
   [
-    { name: { $lte: true } } ,
+    { name: { $lte: true } },
     "Operator $lte expects operand of type (int, float, str, date), but got true",
   ],
 ];

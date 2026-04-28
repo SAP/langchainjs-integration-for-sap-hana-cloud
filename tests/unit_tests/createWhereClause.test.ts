@@ -1,12 +1,10 @@
-import {
-  describe,
-  expect,
-  test,
-  vi
-} from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { HanaDB } from "../../src/index.js";
 import { CreateWhereClause } from "../../src/vectorstores/createWhereClause.js";
-import { ERROR_FILTERING_TEST_CASES, FILTERING_TEST_CASES } from "../integration_tests/fixtures/hanaDb.fixtures.js";
+import {
+  ERROR_FILTERING_TEST_CASES,
+  FILTERING_TEST_CASES,
+} from "../integration_tests/fixtures/hanaDb.fixtures.js";
 
 const dummyHanaDB = {
   getMetadataColumn: vi.fn().mockReturnValue("VEC_META"),

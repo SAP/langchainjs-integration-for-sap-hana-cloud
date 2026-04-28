@@ -1,8 +1,14 @@
 import { OpenAIEmbeddings } from "@langchain/openai";
 import hanaClient from "@sap/hana-client";
 import { Document } from "@langchain/core/documents";
-import { HanaDB, HanaDBArgs, HanaReranker, RerankConfigOptions } from "@sap/hana-langchain";
+import {
+  HanaDB,
+  HanaDBArgs,
+  HanaReranker,
+  RerankConfigOptions,
+} from "@sap/hana-langchain";
 
+/* eslint-disable no-process-env */
 const connectionParams = {
   host: process.env.HANA_DB_ADDRESS,
   port: process.env.HANA_DB_PORT,
@@ -25,18 +31,18 @@ await new Promise<void>((resolve, reject) => {
 
 // Prepare sample documents with metadata
 const docs = [
-    new Document({
-        pageContent: "Python is a programming language",
-        metadata: { category: "programming", difficulty: "beginner" },
-    }),
-    new Document({
-        pageContent: "Machine learning uses algorithms to learn patterns",
-        metadata: { category: "AI", difficulty: "intermediate" },
-    }),
-    new Document({
-        pageContent: "Neural networks are inspired by the human brain",
-        metadata: { category: "AI", difficulty: "advanced" },
-    }),
+  new Document({
+    pageContent: "Python is a programming language",
+    metadata: { category: "programming", difficulty: "beginner" },
+  }),
+  new Document({
+    pageContent: "Machine learning uses algorithms to learn patterns",
+    metadata: { category: "AI", difficulty: "intermediate" },
+  }),
+  new Document({
+    pageContent: "Neural networks are inspired by the human brain",
+    metadata: { category: "AI", difficulty: "advanced" },
+  }),
 ];
 
 // Initialize embeddings
@@ -55,14 +61,19 @@ await vectorStore.initialize();
 await vectorStore.delete({ filter: {} });
 await vectorStore.addDocuments(docs);
 
-
 // Basic reranking
 const rerankConfig: RerankConfigOptions = {
   modelId: process.env.HANA_DB_RERANKING_MODEL_ID || "SAP_CER.20250701",
   topN: 2,
-}
+};
 
-const docsReranked = await vectorStore.similaritySearch("AI Technology", 3, undefined, undefined, rerankConfig);
+const docsReranked = await vectorStore.similaritySearch(
+  "AI Technology",
+  3,
+  undefined,
+  undefined,
+  rerankConfig
+);
 console.log("Reranked Results:");
 docsReranked.forEach((doc) => {
   console.log("-".repeat(80));
@@ -87,7 +98,13 @@ const rerankConfigWithFields: RerankConfigOptions = {
   rankFields: ["category", "difficulty"],
 };
 
-const docsRerankedwithFields = await vectorStore.similaritySearch("learning algorithm", 3, undefined, undefined, rerankConfigWithFields);
+const docsRerankedwithFields = await vectorStore.similaritySearch(
+  "learning algorithm",
+  3,
+  undefined,
+  undefined,
+  rerankConfigWithFields
+);
 console.log("Reranked results with metadata fields:");
 docsRerankedwithFields.forEach((doc) => {
   console.log("-".repeat(80));
@@ -103,14 +120,20 @@ Metadata: { category: 'AI', difficulty: 'advanced' }
 Content: Machine learning uses algorithms to learn patterns
 Metadata: { category: 'AI', difficulty: 'intermediate' }
 */
-  
+
 // Reranking with scores
 const rerankConfigWithScores: RerankConfigOptions = {
   modelId: process.env.HANA_DB_RERANKING_MODEL_ID || "SAP_CER.20250701",
   topN: 3,
 };
 
-const docsRerankedwithScores = await vectorStore.similaritySearchWithScore("neural network architecture", 3, undefined, undefined, rerankConfigWithScores);
+const docsRerankedwithScores = await vectorStore.similaritySearchWithScore(
+  "neural network architecture",
+  3,
+  undefined,
+  undefined,
+  rerankConfigWithScores
+);
 console.log("Reranked results with scores:");
 docsRerankedwithScores.forEach(([doc, score]) => {
   console.log("-".repeat(80));
@@ -151,10 +174,16 @@ const docsToCompress = [
     pageContent: "Natural language processing techniques",
   }),
 ];
-const reranker = new HanaReranker(client, process.env.HANA_DB_RERANKING_MODEL_ID || "SAP_CER.20250701");
+const reranker = new HanaReranker(
+  client,
+  process.env.HANA_DB_RERANKING_MODEL_ID || "SAP_CER.20250701"
+);
 await reranker.initialize();
 
-const compressedDocs = await reranker.compressDocuments(docsToCompress, "AI and deep learning");
+const compressedDocs = await reranker.compressDocuments(
+  docsToCompress,
+  "AI and deep learning"
+);
 
 console.log("Reranked documents:");
 compressedDocs.forEach((doc) => {
@@ -182,7 +211,11 @@ Relevance score: 0.0036
 */
 
 // Use rerank method for more control over topN and rankFields
-const rerankedDocs = await reranker.rerank(docsToCompress, "machine learning", 2);
+const rerankedDocs = await reranker.rerank(
+  docsToCompress,
+  "machine learning",
+  2
+);
 console.log("Top 2 reranked results:");
 rerankedDocs.forEach(([idx, score, doc]) => {
   console.log(`  [${idx}] Score: ${score.toFixed(4)} - ${doc?.pageContent}`);
