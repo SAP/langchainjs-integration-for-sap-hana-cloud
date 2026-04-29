@@ -3,10 +3,7 @@ import hanaClient from "@sap/hana-client";
 // import hanaClient from "hdb"
 import { HanaDB, HanaDBArgs, HanaTranslator } from "@sap/hana-langchain";
 import { Document } from "@langchain/core/documents";
-import {
-  ChatOpenAI,
-  OpenAIEmbeddings,
-} from "@langchain/openai";
+import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
 import { AttributeInfo } from "@langchain/classic/chains/query_constructor";
 import { SelfQueryRetriever } from "@langchain/classic/retrievers/self_query";
 
@@ -18,6 +15,7 @@ import { SelfQueryRetriever } from "@langchain/classic/retrievers/self_query";
  * yarn add peggy
  */
 
+/* eslint-disable no-process-env */
 const connectionParams = {
   host: process.env.HANA_DB_ADDRESS,
   port: process.env.HANA_DB_PORT,
@@ -117,10 +115,10 @@ const retriever = SelfQueryRetriever.fromLLM({
 });
 
 // use the retriever to prepare the self query for a person
-const queryPrompt = "Which person is not active?"
-const retreivedDocs = await retriever.invoke(queryPrompt);
+const queryPrompt = "Which person is not active?";
+const retrievedDocs = await retriever.invoke(queryPrompt);
 
-for (const doc of retreivedDocs){
+for (const doc of retrievedDocs) {
   console.log("-".repeat(80));
   console.log(doc.pageContent + " " + JSON.stringify(doc.metadata));
 }

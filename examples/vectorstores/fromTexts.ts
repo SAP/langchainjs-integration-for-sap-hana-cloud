@@ -1,10 +1,8 @@
 import { OpenAIEmbeddings } from "@langchain/openai";
 import hanaClient from "@sap/hana-client";
-import {
-  HanaDB,
-  HanaDBArgs,
-} from "@sap/hana-langchain";
+import { HanaDB, HanaDBArgs } from "@sap/hana-langchain";
 
+/* eslint-disable no-process-env */
 const connectionParams = {
   host: process.env.HANA_DB_ADDRESS,
   port: process.env.HANA_DB_PORT,

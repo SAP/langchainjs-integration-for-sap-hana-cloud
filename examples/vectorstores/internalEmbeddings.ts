@@ -6,6 +6,7 @@ import {
   HanaInternalEmbeddings,
 } from "@sap/hana-langchain";
 
+/* eslint-disable no-process-env */
 // Initialize the internal embeddings instance using the internal model ID.
 // This instance will use SAP HANA's built-in VECTOR_EMBEDDING function of HanaDB.
 const internalEmbeddings = new HanaInternalEmbeddings({

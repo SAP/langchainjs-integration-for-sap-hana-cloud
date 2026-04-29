@@ -1,9 +1,4 @@
-import {
-  describe,
-  expect,
-  it,
-  test,
-} from "vitest";
+import { describe, expect, it, test } from "vitest";
 import { validateK, validateKAndFetchK } from "../../src/hanautils.js";
 import { HanaDB } from "../../src/index.js";
 

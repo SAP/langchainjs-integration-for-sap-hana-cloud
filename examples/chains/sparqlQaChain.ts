@@ -10,6 +10,7 @@ import {
 // or import another node.js driver
 // import hanaClient from "hdb"
 
+/* eslint-disable no-process-env */
 const connectionParams = {
   host: process.env.HANA_DB_ADDRESS,
   port: process.env.HANA_DB_PORT,
