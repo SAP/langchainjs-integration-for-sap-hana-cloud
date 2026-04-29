@@ -71,7 +71,10 @@ async function isInternalEmbeddingAvailable(
     sqlStr = `VECTOR_EMBEDDING('test', 'QUERY', ?)`;
   } else {
     sqlStr = `VECTOR_EMBEDDING('test', 'QUERY', ?, ?, ?)`;
-    sqlParams.push(embeddings.getRemoteSourceSchema(), embeddings.getRemoteSource());
+    sqlParams.push(
+      embeddings.getRemoteSourceSchema(),
+      embeddings.getRemoteSource()
+    );
   }
   try {
     const query = `
@@ -137,10 +140,11 @@ describe.each(["Array", "Buffer", undefined] as const)(
         remoteSource: process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE,
       },
       {
-        internalEmbeddingModelId: process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID!,
+        internalEmbeddingModelId:
+          process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID!,
         remoteSourceSchema: process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE_SCHEMA,
         remoteSource: process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE,
-      }
+      },
     ])("tests with embedding=%o", (embedding) => {
       beforeAll(async () => {
         const connectionParams = createConnectionParams(vectorOutputType);
