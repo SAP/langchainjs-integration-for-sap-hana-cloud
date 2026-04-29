@@ -1,6 +1,6 @@
 import { Connection } from "@sap/hana-client";
 import { Parser as N3Parser, Store as N3Store } from "n3";
-import { Parser } from '@traqula/parser-sparql-1-1';
+import { Parser } from "@traqula/parser-sparql-1-1";
 import { promises as fs, PathLike } from "fs";
 import { executeSparqlQuery } from "../hanautils.js";
 /**
