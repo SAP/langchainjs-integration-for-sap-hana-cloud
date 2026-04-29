@@ -60,6 +60,14 @@ To set up the development environment, follow these steps:
     pnpm test:int
     ```
 
+- **Activate .git-blame-ignore-revs**
+
+  - To ignore the formatting and linting changes in git blame, run
+
+    ```bash
+    git config blame.ignoreRevsFile .git-blame-ignore-revs
+    ```
+
 - **Formating and Linting**
   - To format code files, run
 
