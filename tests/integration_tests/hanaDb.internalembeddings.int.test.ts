@@ -70,7 +70,8 @@ async function isInternalEmbeddingAvailable(
   if (!embeddings.getRemoteSource()) {
     sqlStr = `VECTOR_EMBEDDING('test', 'QUERY', ?)`;
   } else {
-    sqlStr = `VECTOR_EMBEDDING('test', 'QUERY', ?, "${embeddings.getRemoteSource()}")`;
+    sqlStr = `VECTOR_EMBEDDING('test', 'QUERY', ?, ?, ?)`;
+    sqlParams.push(embeddings.getRemoteSourceSchema(), embeddings.getRemoteSource());
   }
   try {
     const query = `
@@ -122,6 +123,8 @@ describe.each(["Array", "Buffer", undefined] as const)(
     expect(process.env.HANA_DB_PASSWORD).toBeDefined();
     expect(process.env.HANA_DB_EMBEDDING_MODEL_ID).toBeDefined();
     expect(process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID).toBeDefined();
+    expect(process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE_SCHEMA).toBeDefined();
+    expect(process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE).toBeDefined();
     expect(process.env.HANA_DB_RERANK_MODEL_ID).toBeDefined();
 
     describe.each([
@@ -133,6 +136,11 @@ describe.each(["Array", "Buffer", undefined] as const)(
           process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID!,
         remoteSource: process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE,
       },
+      {
+        internalEmbeddingModelId: process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID!,
+        remoteSourceSchema: process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE_SCHEMA,
+        remoteSource: process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE,
+      }
     ])("tests with embedding=%o", (embedding) => {
       beforeAll(async () => {
         const connectionParams = createConnectionParams(vectorOutputType);
