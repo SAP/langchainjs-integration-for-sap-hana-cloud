@@ -17,6 +17,7 @@ export default tseslint.config(
       "**/*.cjs",
       "**/*.d.ts",
       "vitest.config.ts",
+      "tsdown.config.ts",
     ],
   },
 
