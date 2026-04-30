@@ -122,6 +122,8 @@ export class HanaDB extends VectorStore {
 
   private internalEmbeddingRemoteSource: string;
 
+  private internalEmbeddingRemoteSourceSchema: string;
+
   _vectorstoreType(): string {
     return "hanadb";
   }
@@ -508,6 +510,9 @@ export class HanaDB extends VectorStore {
       this.internalEmbeddingRemoteSource = (
         embeddings as HanaInternalEmbeddings
       ).getRemoteSource();
+      this.internalEmbeddingRemoteSourceSchema = (
+        embeddings as HanaInternalEmbeddings
+      ).getRemoteSourceSchema();
     } else {
       this.useInternalEmbeddings = false;
       this.internalEmbeddingModelId = "";
@@ -523,7 +528,11 @@ export class HanaDB extends VectorStore {
     if (!this.internalEmbeddingRemoteSource) {
       vectorEmbeddingSql = `VECTOR_EMBEDDING(?, '${type}', ?)`;
     } else {
-      vectorEmbeddingSql = `VECTOR_EMBEDDING(?, '${type}', ?, "${this.internalEmbeddingRemoteSource}")`;
+      vectorEmbeddingSql = `VECTOR_EMBEDDING(?, '${type}', ?, ?, ?)`;
+      vectorEmbeddingParms.push(
+        this.internalEmbeddingRemoteSourceSchema,
+        this.internalEmbeddingRemoteSource
+      );
     }
     return [vectorEmbeddingSql, vectorEmbeddingParms];
   }
@@ -1115,7 +1124,10 @@ export class HanaDB extends VectorStore {
       if (!this.internalEmbeddingRemoteSource) {
         vectorEmbeddingSql = `VECTOR_EMBEDDING(:i_text, 'DOCUMENT', :i_model_id)`;
       } else {
-        vectorEmbeddingSql = `VECTOR_EMBEDDING(:i_text, 'DOCUMENT', :i_model_id, "${this.internalEmbeddingRemoteSource}")`;
+        // DML functions do not support named parameters,
+        // so we have to rely on position based parameters
+        // for the remote source and schema
+        vectorEmbeddingSql = `VECTOR_EMBEDDING(:i_text, 'DOCUMENT', :i_model_id, '${this.internalEmbeddingRemoteSourceSchema}', '${this.internalEmbeddingRemoteSource}')`;
       }
       vectorEmbeddingSql =
         this.convertVectorEmbeddingToColumnType(vectorEmbeddingSql);

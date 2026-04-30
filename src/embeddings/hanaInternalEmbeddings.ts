@@ -11,6 +11,10 @@ export interface HanaInternalEmbeddingsParams extends EmbeddingsParams {
    */
   internalEmbeddingModelId: string;
   /**
+   * (Optional) The name of the schema where the remote source is defined, if applicable.
+   */
+  remoteSourceSchema?: string;
+  /**
    * (Optional) The remote source name if using a deployed SAP AI CORE instance.
    */
   remoteSource?: string;
@@ -32,9 +36,14 @@ export interface HanaInternalEmbeddingsParams extends EmbeddingsParams {
  *
  *  // Retrieve the internal model id:
  *  console.log(internalEmbeddings.getModelId());
+ *
+ *  // If using a remote source, retrieve the remote source and schema:
+ *  console.log(internalEmbeddings.getRemoteSource());
+ *  console.log(internalEmbeddings.getRemoteSourceSchema());
  */
 export class HanaInternalEmbeddings extends Embeddings {
   private modelId: string;
+  private remoteSourceSchema: string;
   private remoteSource: string;
 
   /**
@@ -45,6 +54,7 @@ export class HanaInternalEmbeddings extends Embeddings {
   constructor(fields: HanaInternalEmbeddingsParams) {
     super(fields);
     this.modelId = fields.internalEmbeddingModelId;
+    this.remoteSourceSchema = fields.remoteSourceSchema || "";
     this.remoteSource = fields.remoteSource || "";
   }
 
@@ -76,6 +86,18 @@ export class HanaInternalEmbeddings extends Embeddings {
     return this.modelId;
   }
 
+  /**
+   * Retrieves the internal embedding remote source schema name, if defined.
+   * @returns The internal embedding remote source schema name.
+   */
+  getRemoteSourceSchema(): string {
+    return this.remoteSourceSchema;
+  }
+
+  /**
+   * Retrieves the internal embedding remote source name, if defined.
+   * @returns The internal embedding remote source name.
+   */
   getRemoteSource(): string {
     return this.remoteSource;
   }
