@@ -19,7 +19,7 @@ const internalEmbeddings = new HanaInternalEmbeddings({
   internalEmbeddingModelId:
     process.env.HANA_DB_EMBEDDING_REMOTE_MODEL_ID || "YOUR_EMBEDDING_MODEL_ID",
   remoteSourceSchema:
-    process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE_SCHEMA || "YOUR_REMOTE_SOURCE_SCHEMA",
+    process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE_SCHEMA || "YOUR_REMOTE_SOURCE_SCHEMA_NAME",
   remoteSource:
     process.env.HANA_DB_EMBEDDING_REMOTE_SOURCE || "YOUR_REMOTE_SOURCE_NAME",
 });
