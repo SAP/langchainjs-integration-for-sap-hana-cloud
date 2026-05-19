@@ -285,14 +285,14 @@ export const TYPE_3_FILTERING_TEST_CASES: FilteringTestCase[] = [
   // These involve usage of AND and OR operators
   // Single operand $or
   [
-    {"$or": [{"id": 1}]},
+    { $or: [{ id: 1 }] },
     [1],
     "WHERE JSON_VALUE(VEC_META, '$.id') = TO_DOUBLE(?)",
     [1],
   ],
   // Single operand $and
   [
-    {"$and": [{"name": "bob"}]},
+    { $and: [{ name: "bob" }] },
     [2],
     "WHERE JSON_VALUE(VEC_META, '$.name') = TO_NVARCHAR(?)",
     ["bob"],
@@ -466,11 +466,11 @@ export const ERROR_FILTERING_TEST_CASES: ErrorFilteringTestCase[] = [
   ],
   // logical operators
   [
-    {"$or": []},
+    { $or: [] },
     "Expected an array of at least 1 operand for operator=$or, but got operands=[]",
   ],
   [
-    {"$and": []},
+    { $and: [] },
     "Expected an array of at least 1 operand for operator=$and, but got operands=[]",
   ],
   [
