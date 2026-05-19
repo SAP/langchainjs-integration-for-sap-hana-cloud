@@ -387,9 +387,9 @@ export class CreateWhereClause {
     operator: LogicalOperator,
     operands: Filter[]
   ): [string, string[]] {
-    if (!Array.isArray(operands) || operands.length < 2) {
+    if (!Array.isArray(operands) || operands.length < 1) {
       throw new Error(
-        `Expected an array of at least two operands for operator=${operator}, but got operands=${JSON.stringify(operands)}`
+        `Expected an array of at least 1 operand for operator=${operator}, but got operands=${JSON.stringify(operands)}`
       );
     }
 

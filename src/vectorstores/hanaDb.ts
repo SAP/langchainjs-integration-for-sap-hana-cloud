@@ -171,7 +171,7 @@ export class HanaDB extends VectorStore {
       } else if (["$and", "$or"].includes(key)) {
         if (!Array.isArray(value)) {
           throw new Error(
-            `Expected an array of at least two operands for operator=${key}, but got operands=${JSON.stringify(value)}`
+            `Expected an array of at least 1 operand for operator=${key}, but got operands=${JSON.stringify(value)}`
           );
         }
         (value as this["FilterType"][]).forEach((subfilter) =>
