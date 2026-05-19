@@ -22,6 +22,9 @@ on:
       HANA_DB_RERANK_MODEL_ID:
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
