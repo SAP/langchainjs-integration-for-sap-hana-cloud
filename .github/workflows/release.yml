@@ -4,6 +4,9 @@ run-name: Releasing by @${{ github.actor }}
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   check-prerelease-dependencies:
     if: github.ref == 'refs/heads/main'
