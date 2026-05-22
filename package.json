@@ -87,6 +87,26 @@
       "require": "./dist/index.cjs",
       "default": "./dist/index.js"
     },
+    "./embeddings": {
+      "types": {
+        "import": "./dist/embeddings/index.d.ts",
+        "require": "./dist/embeddings/index.d.cts",
+        "default": "./dist/embeddings/index.d.ts"
+      },
+      "import": "./dist/embeddings/index.js",
+      "require": "./dist/embeddings/index.cjs",
+      "default": "./dist/embeddings/index.js"
+    },
+    "./vectorstores": {
+      "types": {
+        "import": "./dist/vectorstores/index.d.ts",
+        "require": "./dist/vectorstores/index.d.cts",
+        "default": "./dist/vectorstores/index.d.ts"
+      },
+      "import": "./dist/vectorstores/index.js",
+      "require": "./dist/vectorstores/index.cjs",
+      "default": "./dist/vectorstores/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

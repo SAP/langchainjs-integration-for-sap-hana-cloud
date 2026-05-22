@@ -1,7 +1,11 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: ["./src/index.ts"],
+  entry: [
+    "./src/index.ts",
+    "./src/embeddings/index.ts",
+    "./src/vectorstores/index.ts",
+  ],
   format: ["cjs", "esm"],
   target: "es2022",
   platform: "node",
