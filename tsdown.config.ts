@@ -3,7 +3,10 @@ import { defineConfig } from "tsdown";
 export default defineConfig({
   entry: [
     "./src/index.ts",
+    "./src/chains/index.ts",
     "./src/embeddings/index.ts",
+    "./src/graphs/index.ts",
+    "./src/structured_query/index.ts",
     "./src/vectorstores/index.ts",
   ],
   format: ["cjs", "esm"],
