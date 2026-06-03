@@ -87,56 +87,6 @@
       "require": "./dist/index.cjs",
       "default": "./dist/index.js"
     },
-    "./chains": {
-      "types": {
-        "import": "./dist/chains/index.d.ts",
-        "require": "./dist/chains/index.d.cts",
-        "default": "./dist/chains/index.d.ts"
-      },
-      "import": "./dist/chains/index.js",
-      "require": "./dist/chains/index.cjs",
-      "default": "./dist/chains/index.js"
-    },
-    "./embeddings": {
-      "types": {
-        "import": "./dist/embeddings/index.d.ts",
-        "require": "./dist/embeddings/index.d.cts",
-        "default": "./dist/embeddings/index.d.ts"
-      },
-      "import": "./dist/embeddings/index.js",
-      "require": "./dist/embeddings/index.cjs",
-      "default": "./dist/embeddings/index.js"
-    },
-    "./graphs": {
-      "types": {
-        "import": "./dist/graphs/index.d.ts",
-        "require": "./dist/graphs/index.d.cts",
-        "default": "./dist/graphs/index.d.ts"
-      },
-      "import": "./dist/graphs/index.js",
-      "require": "./dist/graphs/index.cjs",
-      "default": "./dist/graphs/index.js"
-    },
-    "./structured_query": {
-      "types": {
-        "import": "./dist/structured_query/index.d.ts",
-        "require": "./dist/structured_query/index.d.cts",
-        "default": "./dist/structured_query/index.d.ts"
-      },
-      "import": "./dist/structured_query/index.js",
-      "require": "./dist/structured_query/index.cjs",
-      "default": "./dist/structured_query/index.js"
-    },
-    "./vectorstores": {
-      "types": {
-        "import": "./dist/vectorstores/index.d.ts",
-        "require": "./dist/vectorstores/index.d.cts",
-        "default": "./dist/vectorstores/index.d.ts"
-      },
-      "import": "./dist/vectorstores/index.js",
-      "require": "./dist/vectorstores/index.cjs",
-      "default": "./dist/vectorstores/index.js"
-    },
     "./package.json": "./package.json"
   },
   "files": [
