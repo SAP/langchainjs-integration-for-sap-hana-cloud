@@ -56,6 +56,7 @@ function getExpectedSchemaGraph(): N3Store {
   const __dirname = path.dirname(__filename);
   const ontologyLocalFilePath = path.join(
     __dirname,
+    "..",
     "fixtures",
     "hana_rdf_graph_sample_schema.ttl"
   );
@@ -211,6 +212,7 @@ test("hana rdf graph creation with ontology file", async () => {
   const __dirname = path.dirname(__filename);
   const ontologyLocalFilePath = path.join(
     __dirname,
+    "..",
     "fixtures",
     "hana_rdf_graph_sample_schema.ttl"
   );

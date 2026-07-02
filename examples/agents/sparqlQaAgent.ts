@@ -147,11 +147,10 @@ const query = "which actors acted in Blade Runner?";
 // const query = "where were the actors of 'Blade Runner' born?"
 // const query = "which actors acted together in a movie and were born in the same city?"
 
-
 console.log("\n--- Streamed (messages: token-by-token) ---");
 for await (const [chunk, _metadata] of await agent.stream(
   { messages: [{ role: "user", content: query }] },
-  { streamMode: "messages" },
+  { streamMode: "messages" }
 )) {
   if (chunk.content) {
     process.stdout.write(chunk.text);

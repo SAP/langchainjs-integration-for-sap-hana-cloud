@@ -22,7 +22,7 @@ import {
   FILTERING_DOCUMENTS,
   FILTERING_TEST_CASES,
   ERROR_FILTERING_TEST_CASES,
-} from "./fixtures/hanaDb.fixtures.js";
+} from "../fixtures/hanaDb.fixtures.js";
 import {
   DOCUMENTS,
   METADATAS,

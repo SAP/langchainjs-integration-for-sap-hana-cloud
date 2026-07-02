@@ -169,13 +169,13 @@ export class HanaSparqlQAAgent {
 
   /**
    * Creates a new SPARQL QA agent.
-   * 
+   *
    * @param model The chat model, either a model identifier string or a `BaseChatModel` instance.
    * @param config Agent and model configuration.
    * @returns A SPARQL QA agent instance.
    */
   static createAgent(
-    model : string | BaseChatModel,
+    model: string | BaseChatModel,
     config: HanaSparqlQAAgentOptions
   ): ReturnType<typeof createBaseAgent> {
     const instance = new HanaSparqlQAAgent(config);

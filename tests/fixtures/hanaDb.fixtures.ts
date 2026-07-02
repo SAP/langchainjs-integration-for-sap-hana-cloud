@@ -1,5 +1,5 @@
 import { Document } from "@langchain/core/documents";
-import { Filter } from "../../../src/vectorstores/createWhereClause.js";
+import { Filter } from "../../src/vectorstores/createWhereClause.js";
 
 interface Metadata {
   name: string;
