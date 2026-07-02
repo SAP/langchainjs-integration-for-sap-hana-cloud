@@ -61,3 +61,7 @@ jobs:
 
       - name: Run integration tests
         run: pnpm test:int
+
+      - name: Run agentevals
+        continue-on-error: true
+        run: pnpm test:eval
