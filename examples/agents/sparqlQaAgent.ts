@@ -43,8 +43,8 @@ Load the `kgdocu_movies` example data. See [Knowledge Graph Example](https://hel
 Below we’ll:
 
 1. Instantiate the `HanaRdfGraph` pointing at our “movies” data graph  
-2. Wrap it in a `HanaSparqlQAChain` powered by an LLM  
-3. Ask natural-language questions and print out the chain’s responses 
+2. Wrap it in a `HanaSparqlQAAgent` powered by an LLM  
+3. Ask natural-language questions and print out the agent's responses 
 */
 
 const graphOptions: HanaRdfGraphOptions = {
