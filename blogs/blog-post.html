@@ -1,0 +1,201 @@
+<h1>Vector Search with SAP HANA Cloud and LangChain.js</h1>
+
+<p>Imagine your customer types <em>&ldquo;something comfortable for working from home&rdquo;</em> into your shop&rsquo;s search bar. There&rsquo;s no &ldquo;comfortable&rdquo; column in your product table. No &ldquo;work from home&rdquo; tag either. And yet your store somehow needs to surface the ergonomic chair, the noise-cancelling headphones, and the standing desk.</p>
+
+<p>That gap between <strong>what people say</strong> and <strong>what your database stores</strong> is exactly where vector search lives. With <strong><code>&#64;sap/hana-langchain</code></strong>, your SAP HANA Cloud database doesn&rsquo;t just store your data. It understands it.</p>
+
+<blockquote>
+  <p><strong>The full walkthrough, with every line of code, every output, and every config option, lives on GitHub:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/blog-post.md" target="_blank" rel="noopener">blogs/blog-post.md</a>. The sections below focus on the ideas worth remembering, paired with the bits of code and output that bring them to life.</p>
+</blockquote>
+
+<h2>What it is</h2>
+
+<p><code>&#64;sap/hana-langchain</code> is the official open-source bridge between <strong>SAP HANA Cloud&rsquo;s Vector Engine</strong> and <strong>LangChain.js</strong>. It turns your enterprise database into a first-class AI retrieval layer for RAG, semantic search, recommendations, and intelligent Q&amp;A, all running where your data already lives.</p>
+
+<p>Two lines and you have a vector store:</p>
+
+<pre><code class="language-bash">npm install @langchain/core @langchain/classic langchain
+npm install @sap/hana-langchain
+</code></pre>
+
+<h2>Searching by intent, not by keywords</h2>
+
+<p>Let&rsquo;s walk through the real story. A customer is setting up their home office. They open your store and search:</p>
+
+<blockquote>
+  <p><em>&ldquo;comfortable work from home setup&rdquo;</em></p>
+</blockquote>
+
+<p>Your catalogue has hundreds of products. Keyword search? Zero relevant hits. With <code>HanaDB</code>? Watch what happens.</p>
+
+<pre><code class="language-typescript">import { HanaDB, HanaInternalEmbeddings } from "@sap/hana-langchain";
+
+// Embeddings happen INSIDE HANA. No external API. No data leaving your DB.
+const embeddings = new HanaInternalEmbeddings({
+  internalEmbeddingModelId: "SAP_NEB.20240715",
+});
+
+const store = new HanaDB(embeddings, {
+  connection: client,
+  tableName: "PRODUCT_CATALOG",
+});
+await store.initialize();
+
+const results = await store.similaritySearch(
+  "comfortable work from home setup",
+  2,
+);
+</code></pre>
+
+<p>The output:</p>
+
+<pre><code class="language-text">[
+  Document {
+    pageContent: 'Ergonomic office chair with lumbar support and adjustable armrests',
+    metadata: { category: 'furniture', price: 449, in_stock: true }
+  },
+  Document {
+    pageContent: 'Professional espresso machine with built-in grinder',
+    metadata: { category: 'appliances', price: 899.99, in_stock: false }
+  }
+]
+</code></pre>
+
+<p>The chair makes obvious sense. The espresso machine? Also surprisingly on-brand for &ldquo;working from home.&rdquo; The model picked up on intent that no SQL <code>LIKE</code> ever could.</p>
+
+<h2>Cosine vs. Euclidean: pick your distance</h2>
+
+<p>So how does <code>similaritySearch</code> actually decide which products are &ldquo;closest&rdquo; to the query? Each document and the query are turned into vectors, and then <code>HanaDB</code> applies a <em>distance metric</em> to measure how far apart they are. The library supports two: <strong>cosine</strong> (the default) and <strong>Euclidean</strong>. You pick which one you want with a single config option when you create the store.</p>
+
+<p>The choice matters because the two metrics score the same set of candidates differently. Take the query <em>&ldquo;high quality audio headphones&rdquo;</em> and run it under both strategies. Same data, same embedding model, different scoring philosophy:</p>
+
+<pre><code class="language-text">COSINE Similarity Results (higher = more similar)
+[0.7219] Wireless noise-canceling headphones with premium sound quality
+[0.5506] Professional studio microphone for podcasting and streaming
+[0.5206] Bluetooth speaker with deep bass and 20-hour battery
+
+EUCLIDEAN Distance Results (lower = more similar)
+[0.7086] Wireless noise-canceling headphones with premium sound quality
+[0.9048] Professional studio microphone for podcasting and streaming
+[0.9251] Bluetooth speaker with deep bass and 20-hour battery
+</code></pre>
+
+<p>Both metrics pick the same winner here, but notice the gap between first and second place: cosine spreads the candidates by relative similarity, Euclidean by raw distance in vector space. As a rule of thumb, <strong>cosine</strong> is the right default for text, because it only cares about the <em>direction</em> the vectors point in, not how long they are. <strong>Euclidean</strong> is a better fit when the actual position of the vectors carries meaning, for example when your embeddings come from numerical features rather than text. If you&rsquo;re not sure which to pick, leave it on cosine.</p>
+
+<h2>Adding diversity when you need it: MMR</h2>
+
+<p>Sometimes &ldquo;most similar&rdquo; is exactly what the user wants. A shopper who searches for <em>&ldquo;wireless headphones&rdquo;</em> expects a list of wireless headphones, and similarity search delivers that perfectly well.</p>
+
+<p>But there are spots in the same product journey where pure similarity hurts the experience. The classic case is the <strong>&ldquo;customers also viewed&rdquo;</strong> strip on a product detail page. A shopper looking at a premium open-back studio headphone doesn&rsquo;t need to see four more premium over-ear headphones below it. They&rsquo;d be much better served by a strip that <em>also</em> shows them a different form factor, a different price tier, or a noise-cancelling alternative.</p>
+
+<p>That&rsquo;s the job of <strong>Maximal Marginal Relevance</strong> (MMR). Instead of returning the top-k most similar documents, MMR picks results that are <em>both</em> relevant <em>and</em> different from each other. You retrieve a larger candidate pool; MMR walks it, picking the next item that maximises relevance while penalising redundancy with what&rsquo;s already been chosen. One <code>lambda</code> knob tunes the balance between relevance and diversity.</p>
+
+<p>Same vector store, same query, two different methods. First, plain similarity search:</p>
+
+<pre><code class="language-typescript">// Plain similarity search: top-4 candidates ordered by closeness alone
+const similar = await vectorStore.similaritySearch(
+  "premium wireless over-ear headphones",
+  4,
+);
+</code></pre>
+
+<pre><code class="language-text">similaritySearch top 4:
+  1. AudioMax Pro 5     (over-ear-wireless, $349.99)
+  2. AuroraSound Pro    (over-ear-wireless, $379.99)
+  3. AudioMax Buds 5    (true-wireless,     $299.99)
+  4. QuietShield Ultra  (over-ear-wireless, $429.99)
+</code></pre>
+
+<p>Three of the four results are premium over-ear wireless headphones, almost interchangeable for the shopper. Not a useful &ldquo;customers also viewed&rdquo; strip.</p>
+
+<p>Now the same query, through MMR:</p>
+
+<pre><code class="language-typescript">// MMR: pick 4 from a wider candidate pool while penalising redundancy.
+// lambda = 0.5 balances relevance and diversity evenly.
+const recommendations = await vectorStore.maxMarginalRelevanceSearch(
+  "premium wireless over-ear headphones",
+  { k: 4, fetchK: 12, lambda: 0.5 },
+);
+</code></pre>
+
+<pre><code class="language-text">maxMarginalRelevanceSearch top 4:
+  1. AudioMax Pro 5     (over-ear-wireless, $349.99)
+  2. FlexFit Sport      (neckband,           $89.99)
+  3. AuroraSound Pro    (over-ear-wireless, $379.99)
+  4. TuneCore 510       (on-ear-wireless,    $49.99)
+</code></pre>
+
+<p>The top match is still the most relevant premium over-ear pair, but the next three deliberately span different form factors and price tiers. The shopper now sees an actual mix to compare, all from one method swap on the same vector store and the same product catalogue.</p>
+
+<p>Use <code>similaritySearch</code> when the goal is the closest match. Reach for <code>maxMarginalRelevanceSearch</code> when the goal is <em>coverage</em>: recommendation strips, RAG context that spans multiple sub-topics, related-articles modules, or anywhere a single dominant theme would crowd out everything else.</p>
+
+<h2>Filtering that speaks JavaScript</h2>
+
+<p>Semantic search is great. Semantic search <em>plus</em> structured filters is unbeatable. <code>HanaDB</code>&rsquo;s filter syntax will feel instantly familiar to anyone who&rsquo;s ever written a MongoDB query:</p>
+
+<pre><code class="language-typescript">// In-stock electronics under $500
+const filter = {
+  $and: [
+    { in_stock: true },
+    { category: "electronics" },
+    { price: { $lt: 500 } },
+  ],
+};
+
+const results = await store.similaritySearch("best audio quality", 10, filter);
+</code></pre>
+
+<p>And the result is exactly what the filter promised: only in-stock electronics, all under $500, ranked by audio quality:</p>
+
+<pre><code class="language-text">[
+  { pageContent: 'Premium wireless headphones with spatial audio...',  price: 349.99, in_stock: true },
+  { pageContent: 'Budget wireless earbuds with decent sound...',       price:  49.99, in_stock: true },
+  { pageContent: 'Bluetooth over-ear headphones with active noise...', price: 249.99, in_stock: true },
+  { pageContent: 'Wireless noise-canceling headphones with 30-hour...',price: 299.99, in_stock: true }
+]
+</code></pre>
+
+<p>You get the full operator suite (<code>$lt</code>, <code>$lte</code>, <code>$gte</code>, <code>$between</code>, <code>$in</code>, <code>$nin</code>, <code>$like</code>, <code>$contains</code>, <code>$and</code>, <code>$or</code>) all compiled down to native HANA SQL. No JavaScript-side filtering. No surprises at scale.</p>
+
+<h2>Letting the LLM write its own filters</h2>
+
+<p>Here&rsquo;s where it gets fun. What if a user types <em>&ldquo;Show me AudioMax electronics under $400 with good ratings&rdquo;</em>? You <em>could</em> build a custom intent parser. Or you could let the LLM do it for free, with the <code>HanaTranslator</code>:</p>
+
+<pre><code class="language-typescript">const retriever = SelfQueryRetriever.fromLLM({
+  llm,
+  vectorStore: store,
+  documentContents: "Product description for an e-commerce catalog",
+  attributeInfo,                              // describe your metadata
+  structuredQueryTranslator: new HanaTranslator(),
+});
+
+await retriever.invoke("Show me AudioMax electronics under $400 with good ratings");
+</code></pre>
+
+<p>Behind the scenes, the LLM emits:</p>
+
+<pre><code class="language-text">{
+  $and: [
+    { brand: "AudioMax" },
+    { category: "electronics" },
+    { price:  { $lt:  400 } },
+    { rating: { $gte: 4 } }
+  ]
+}
+</code></pre>
+
+<p>Natural language in. Structured filter out. Vector search on top. <strong>Zero glue code.</strong></p>
+
+<h2>There&rsquo;s more in the box</h2>
+
+<p>What you&rsquo;ve seen so far is the foundation. The library ships with three more capabilities, each big enough to deserve its own deep-dive:</p>
+
+<ul>
+  <li><strong><a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/examples/vectorstores/reranking.ts">Cross-encoding reranking</a></strong> with <code>HanaReranker</code>. Re-score your top candidates for surgical-precision results, the secret sauce behind great RAG and customer-facing search.</li>
+  <li><strong><a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/examples/graphs/basics.ts">Knowledge graphs &amp; SPARQL</a></strong> with <code>HanaRdfGraph</code>. Query RDF data, build natural-language Q&amp;A over relationships, and combine graph reasoning with vector search.</li>
+  <li><strong><a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/examples/vectorstores/internalEmbeddings.ts">Performance at scale</a></strong> with Map Merge, HNSW indexes, and specific metadata columns. Roughly 9× faster bulk inserts, sub-second search at million-document scale, and faster filtered queries.</li>
+</ul>
+
+<p>Stay tuned for more updates and deep dives into each of these capabilities!</p>
+
+<p><strong>Get the code:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud" target="_blank" rel="noopener">SAP/langchainjs-integration-for-sap-hana-cloud</a> &nbsp;|&nbsp; <strong>Read the full guide:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/blog-post.md" target="_blank" rel="noopener">blog-post.md</a></p>
