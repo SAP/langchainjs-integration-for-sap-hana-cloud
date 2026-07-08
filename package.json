@@ -29,6 +29,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:int": "vitest run --mode int",
+    "test:eval": "vitest run --mode eval",
     "format": "prettier --config .prettierrc --write \"src\"",
     "format:check": "prettier --config .prettierrc --check \"src\"",
     "format:tests": "prettier --config .prettierrc --write \"tests\"",
@@ -40,19 +41,23 @@
   "dependencies": {
     "@sap/hana-client": "^2.28.21",
     "@traqula/parser-sparql-1-1": "^1.1.1",
-    "n3": "^2.0.3"
+    "n3": "^2.0.3",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@langchain/classic": "^1.0.34",
-    "@langchain/core": "^1.1.48"
+    "@langchain/classic": "^1.0.38",
+    "@langchain/core": "^1.2.1",
+    "langchain": "^1.5.2"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.3",
     "@eslint/js": "^9.39.4",
-    "@langchain/core": "^1.1.48",
+    "@langchain/core": "^1.2.1",
     "@langchain/textsplitters": "^1.0.1",
+    "@sap-ai-sdk/langchain": "^2.12.0",
     "@types/n3": "^1.26.1",
     "@types/node": "^25.9.1",
+    "agentevals": "^0.0.7",
     "dedent": "^1.7.2",
     "dotenv": "^17.4.2",
     "dpdm": "^4.2.0",
@@ -61,6 +66,7 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-no-instanceof": "^1.0.1",
     "eslint-plugin-prettier": "^5.5.6",
+    "langchain": "^1.5.2",
     "prettier": "^3.8.3",
     "publint": "^0.3.21",
     "rdf-isomorphic": "^2.0.1",

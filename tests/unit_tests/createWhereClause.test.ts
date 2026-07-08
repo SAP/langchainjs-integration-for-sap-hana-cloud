@@ -4,7 +4,7 @@ import { CreateWhereClause } from "../../src/vectorstores/createWhereClause.js";
 import {
   ERROR_FILTERING_TEST_CASES,
   FILTERING_TEST_CASES,
-} from "../integration_tests/fixtures/hanaDb.fixtures.js";
+} from "../fixtures/hanaDb.fixtures.js";
 
 const dummyHanaDB = {
   getMetadataColumn: vi.fn().mockReturnValue("VEC_META"),
