@@ -2,20 +2,10 @@ import { Comparator as BaseComparator } from "@langchain/core/structured_query";
 
 // Base value types that can be used in comparisons
 export type ComparisonRValue =
-  | string
-  | number
-  | boolean
-  | Date
-  | null
-  | Array<ComparisonRValue>;
+  string | number | boolean | Date | null | Array<ComparisonRValue>;
 
 type Comparator =
-  | BaseComparator
-  | "like"
-  | "contains"
-  | "in"
-  | "nin"
-  | "between";
+  BaseComparator | "like" | "contains" | "in" | "nin" | "between";
 
 // Filter using comparison operators
 // Defines the relationship between a comparison operator and its value
@@ -30,12 +20,7 @@ type LogicalFilter = {
 };
 type PropertyFilter = {
   [property: string]:
-    | string
-    | number
-    | boolean
-    | Date
-    | null
-    | ComparatorFilter;
+    string | number | boolean | Date | null | ComparatorFilter;
 };
 
 export type Filter = PropertyFilter | LogicalFilter;
