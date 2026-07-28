@@ -6,7 +6,7 @@
  * Run them explicitly with `pnpm test:eval`.
  */
 import hanaClient, { Connection } from "@sap/hana-client";
-import { AzureOpenAiChatClient } from "@sap-ai-sdk/langchain";
+import { OrchestrationClient } from "@sap-ai-sdk/langchain";
 import { BaseMessage } from "@langchain/core/messages";
 import {
   createTrajectoryLLMAsJudge,
@@ -36,12 +36,17 @@ const connectionParams = {
 /* eslint-enable no-process-env */
 
 let client: Connection;
-let llm: AzureOpenAiChatClient;
+let llm: OrchestrationClient;
 let agent: ReturnType<typeof HanaSparqlQAAgent.createAgent>;
 let trajectoryMatchEvaluator: ReturnType<typeof createTrajectoryMatchEvaluator>;
 let trajectoryLlmJudge: ReturnType<typeof createTrajectoryLLMAsJudge>;
 
 beforeAll(async () => {
+  expect(process.env.HANA_DB_ADDRESS).toBeDefined();
+  expect(process.env.HANA_DB_PORT).toBeDefined();
+  expect(process.env.HANA_DB_USER).toBeDefined();
+  expect(process.env.HANA_DB_PASSWORD).toBeDefined();
+  expect(process.env.AI_CORE_MODEL_ID).toBeDefined();
   client = hanaClient.createConnection(connectionParams);
   await HanaTestUtils.connectToHANA(client);
 
@@ -53,7 +58,13 @@ beforeAll(async () => {
   const graph = new HanaRdfGraph(graphOptions);
   await graph.initialize(graphOptions);
 
-  llm = new AzureOpenAiChatClient({ modelName: "gpt-4o", temperature: 0 });
+  llm = new OrchestrationClient({
+  promptTemplating: {
+      model: {
+        name: process.env.AI_CORE_MODEL_ID!,
+      }
+    }
+  });
   agent = HanaSparqlQAAgent.createAgent(llm, { graph });
 
   trajectoryMatchEvaluator = createTrajectoryMatchEvaluator({
