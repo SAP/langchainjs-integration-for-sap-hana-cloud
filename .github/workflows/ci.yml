@@ -2,25 +2,6 @@ name: CI
 on:
   workflow_dispatch:
   workflow_call:
-    secrets:
-      HANA_DB_ADDRESS:
-        required: true
-      HANA_DB_PORT:
-        required: true
-      HANA_DB_USER:
-        required: true
-      HANA_DB_PASSWORD:
-        required: true
-      HANA_DB_EMBEDDING_MODEL_ID:
-        required: true
-      HANA_DB_EMBEDDING_REMOTE_MODEL_ID:
-        required: true
-      HANA_DB_EMBEDDING_REMOTE_SOURCE_SCHEMA:
-        required: true
-      HANA_DB_EMBEDDING_REMOTE_SOURCE:
-        required: true
-      HANA_DB_RERANK_MODEL_ID:
-        required: true
 
 permissions:
   contents: read
@@ -61,7 +42,3 @@ jobs:
 
       - name: Run integration tests
         run: pnpm test:int
-
-      - name: Run agentevals
-        continue-on-error: true
-        run: pnpm test:eval
