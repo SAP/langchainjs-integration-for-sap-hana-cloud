@@ -33,7 +33,6 @@ const connectionParams = {
   user: process.env.HANA_DB_USER,
   password: process.env.HANA_DB_PASSWORD,
 };
-/* eslint-enable no-process-env */
 
 let client: Connection;
 let llm: OrchestrationClient;
