@@ -58,11 +58,11 @@ beforeAll(async () => {
   await graph.initialize(graphOptions);
 
   llm = new OrchestrationClient({
-  promptTemplating: {
+    promptTemplating: {
       model: {
         name: process.env.AI_CORE_MODEL_ID!,
-      }
-    }
+      },
+    },
   });
   agent = HanaSparqlQAAgent.createAgent(llm, { graph });
 
