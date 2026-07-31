@@ -1,0 +1,139 @@
+<h1>Performance Optimization with SAP HANA Cloud and LangChain.js</h1>
+
+<p>Your prototype works. You loaded a few hundred documents into <code>HanaDB</code>, ran a similarity search, demoed it to your team, got the green light. Now product wants to load <strong>25,400 research papers</strong> by next week, and search latency needs to stay under a second.</p>
+
+<p>This is the scale where the difference between a toy and a product gets decided. <code>&#64;sap/hana-langchain</code> ships three optimisations that tilt the math in your favour: <strong>Map Merge</strong> for bulk inserts, <strong>HNSW indexes</strong> for fast search at scale, and <strong>specific metadata columns</strong> for fast filtering. We benchmarked all three on a real arXiv dataset. The numbers are striking.</p>
+
+<blockquote>
+  <p><strong>Full walkthrough on GitHub:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/performance-optimization.md" target="_blank" rel="noopener">blogs/performance-optimization.md</a>. Every code sample, every benchmark script, every parameter table.</p>
+</blockquote>
+
+<h2>The dataset: 25,400 arXiv abstracts</h2>
+
+<p>To make these numbers concrete and reproducible, the benchmarks below all use a real corpus: <strong>25,400 arXiv research paper abstracts</strong> drawn from the <a href="https://huggingface.co/datasets/gfissore/arxiv-abstracts-2021" target="_blank" rel="noopener">gfissore/arxiv-abstracts-2021</a> dataset on Hugging Face. Average abstract is about 1 KB. Embeddings are computed by HANA itself via <code>HanaInternalEmbeddings</code>.</p>
+
+<blockquote>
+  <p><strong>Note:</strong> All measurements in this guide were taken on a server machine with 48 cores. Absolute numbers will vary with your hardware, SAP HANA Cloud configuration, network latency, and document size, so treat them as relative comparisons rather than fixed figures.</p>
+</blockquote>
+
+<h2>Bulk inserts: 8.7× faster with Map Merge</h2>
+
+<p>The default <code>addDocuments</code> path is sequential. Embed a document, insert a row, repeat. Fine for hundreds of records, painful at 25,000. <strong>Map Merge</strong> uses HANA&rsquo;s <code>MAP_MERGE</code> primitive to embed and insert in parallel across database nodes, with columnar batching and minimal client-server chatter.</p>
+
+<p>One flag turns it on:</p>
+
+<pre><code class="language-typescript">// Default behavior: sequential, simple, slow at scale
+await vsStandard.addDocuments(documents);
+
+// Parallel, columnar, dramatically faster
+await vsMapMerge.addDocuments(documents, { useMapMerge: true });
+</code></pre>
+
+<p>And here&rsquo;s what that flag bought us on 25,400 abstracts:</p>
+
+<pre><code class="language-text">Map Merge: 354.2s   (~6 minutes,   72 docs/s)
+Standard:  3087.3s  (~51 minutes,   8 docs/s)
+Speedup:   8.7x faster with Map Merge
+</code></pre>
+
+<p>That&rsquo;s a coffee break versus a long lunch. And it scales: the more documents you have, the more the parallelism wins.</p>
+
+<p><strong>The catch:</strong> Map Merge requires <code>HanaInternalEmbeddings</code>. External embedding APIs can&rsquo;t be parallelised inside the database, so they&rsquo;re not supported here. The good news: <code>HanaInternalEmbeddings</code> is faster, cheaper, and more private anyway.</p>
+
+<h2>Fast search at scale: HNSW indexes</h2>
+
+<p>By default, similarity search in <code>HanaDB</code> is <em>exact</em>. It computes the distance from your query to <em>every single vector</em> in the table and picks the closest. Beautiful at small scale, brutal at large scale.</p>
+
+<p><strong>HNSW</strong> (Hierarchical Navigable Small World) trades a tiny amount of recall for sub-linear search time. It builds a multi-layer graph where higher layers act like an express train and lower layers handle precise neighbour lookups. Once it&rsquo;s built, your queries don&rsquo;t care how big your dataset gets.</p>
+
+<p>Building the index is one line:</p>
+
+<pre><code class="language-typescript">// Default settings, sensible for most workloads
+await vectorStore.createHnswIndex();
+
+// Or tune for your specific recall/latency target
+await vectorStore.createHnswIndex({
+  m: 64,                  // max neighbours per node (memory vs. quality)
+  efConstruction: 200,    // build-time accuracy
+  efSearch: 400,          // query-time accuracy
+});
+</code></pre>
+
+<p>Once it&rsquo;s built, every <code>similaritySearch</code> call automatically uses it. No code changes downstream.</p>
+
+<h3>So when does HNSW pay off?</h3>
+
+<p>Here&rsquo;s the honest answer, and it surprises people:</p>
+
+<pre><code class="language-text">Search without HNSW: 117ms
+HNSW index created in 1578ms
+Search with HNSW:    205ms
+</code></pre>
+
+<p>At <strong>25,400 documents, exact search is actually faster.</strong> The graph-traversal overhead of HNSW outweighs its asymptotic advantage at this size. But scale up and the curves cross dramatically:</p>
+
+<pre><code class="language-text">Dataset Size    Exact Search    HNSW Search    Recommendation
+   25K              ~117ms          ~205ms       Use exact search
+  100K              ~500ms           ~50ms       HNSW recommended
+  500K               ~2-3s           ~50ms       HNSW essential
+   1M+                ~5s+           ~50ms       HNSW required
+</code></pre>
+
+<p>HNSW search time is roughly <em>constant</em> regardless of dataset size. Exact search is <em>linear</em>. The break-even sits somewhere between 50K and 100K documents. Below that, skip the index. Above that, you&rsquo;ll wonder how you ever lived without it.</p>
+
+<h2>Faster filtering: specific metadata columns</h2>
+
+<p>By default, <code>HanaDB</code> stores all metadata as JSON in a single column. That&rsquo;s perfectly fine, until you start filtering on the same field over and over. Each filtered query parses the JSON, every time.</p>
+
+<p>For frequently filtered fields, you can promote them into <strong>dedicated SQL columns</strong>. Native column comparisons replace JSON parsing, and the database can index them properly.</p>
+
+<p>Create the table with the columns you care about:</p>
+
+<pre><code class="language-sql">CREATE TABLE "PAPERS_SPECIFIC_COLUMNS" (
+  "VEC_TEXT" NCLOB,
+  "VEC_META" NCLOB,
+  "VEC_VECTOR" REAL_VECTOR,
+  "primaryCategory" NVARCHAR(100),
+  "id" NVARCHAR(100)
+);
+</code></pre>
+
+<p>Then point <code>HanaDB</code> at them:</p>
+
+<pre><code class="language-typescript">const vsColumns = new HanaDB(embeddings, {
+  connection: client,
+  tableName: "PAPERS_SPECIFIC_COLUMNS",
+  specificMetadataColumns: ["primaryCategory", "id"],
+});
+</code></pre>
+
+<p>The library quietly steers anything mentioning <code>primaryCategory</code> or <code>id</code> in your filter into native SQL comparisons; everything else still uses the JSON column. Same filter syntax, no client-side change.</p>
+
+<p>Filtering 25,400 papers by <code>primaryCategory</code>:</p>
+
+<pre><code class="language-text">JSON metadata filtering:    166ms
+Specific columns filtering: 126ms
+Speedup: 1.3x faster with specific columns
+</code></pre>
+
+<p>Modest at this scale, because HANA&rsquo;s JSON parser is already very fast. The gap widens as your dataset grows and as your filter conditions get more complex. The win is most pronounced for <em>exact-match</em> filters (categories, statuses, IDs) and <em>range</em> filters (prices, dates).</p>
+
+<h2>The production playbook</h2>
+
+<ol>
+  <li><strong>Use <code>HanaInternalEmbeddings</code>.</strong> Required for Map Merge, lower latency, no external API costs.</li>
+  <li><strong>Bulk-load with Map Merge.</strong> Whenever you&rsquo;re inserting more than a few hundred documents at once.</li>
+  <li><strong>Build the HNSW index <em>after</em> your initial load.</strong> Indexing during streaming inserts wastes work. One <code>createHnswIndex()</code> call when the data is settled.</li>
+  <li><strong>Promote your hot filter fields to specific columns.</strong> Pick the one to three fields you filter on most. Don&rsquo;t over-do it; sparse JSON metadata is fine for the rest.</li>
+  <li><strong>Tune to your recall target.</strong> Higher <code>efSearch</code> = better recall, slower queries. Higher <code>m</code> = better quality, more memory. Profile, then pick.</li>
+</ol>
+
+<h2>Where to take this next</h2>
+
+<ul>
+  <li><strong>Foundations first:</strong> <a href="https://community.sap.com/t5/technology-blog-posts-by-sap/building-vector-search-applications-with-sap-hana-cloud-and-langchain-js/ba-p/14413474">Vector Search with SAP HANA Cloud and LangChain.js</a>. Start here if you haven&rsquo;t set up <code>HanaDB</code> yet.</li>
+  <li><strong>Sharper search results:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/examples/vectorstores/reranking.ts">Cross-Encoding Reranking</a>. Combine HNSW retrieval with reranking for production-grade RAG.</li>
+  <li><strong>Beyond similarity:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/examples/graphs/basics.ts">Knowledge Graphs &amp; SPARQL</a> for relationship-rich queries.</li>
+</ul>
+
+<p><strong>Get the code:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud" target="_blank" rel="noopener">SAP/langchainjs-integration-for-sap-hana-cloud</a> &nbsp;|&nbsp; <strong>Read the full guide:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/performance-optimization.md" target="_blank" rel="noopener">performance-optimization.md</a></p>

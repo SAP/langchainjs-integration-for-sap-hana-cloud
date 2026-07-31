@@ -732,9 +732,9 @@ const args: HanaDBArgs = {
 - **SAP HANA Cloud Vector Engine Guide**: [SAP Help Portal](https://help.sap.com/docs/hana-cloud-database/sap-hana-cloud-sap-hana-database-vector-engine-guide)
 - **LangChain.js Documentation**: [js.langchain.com](https://js.langchain.com)
 <!-- Add these when all blogs are published -->
-<!-- - **Knowledge Graph Guide**: [RDF & SPARQL Q&A](./knowledge-graph-engine.md)
+<!-- - **Knowledge Graph Guide**: [RDF & SPARQL Q&A](./knowledge-graph-engine.md) -->
 - **Performance Optimization Guide**: [HNSW & Map Merge](./performance-optimization.md)
-- **Cross-Encoding Reranking Guide**: [Improving Search Quality](./cross-encoding-reranking.md) -->
+<!-- - **Cross-Encoding Reranking Guide**: [Improving Search Quality](./cross-encoding-reranking.md) -->
 
 ---
 
