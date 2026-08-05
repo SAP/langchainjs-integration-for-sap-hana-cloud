@@ -1,4 +1,5 @@
 import { Comparator as BaseComparator } from "@langchain/core/structured_query";
+import { validateIdentifier } from "./utils.js";
 
 // Base value types that can be used in comparisons
 export type ComparisonRValue =
@@ -259,6 +260,7 @@ export class CreateWhereClause {
     const selector = this.createSelector(column);
 
     if (operator === "$contains") {
+      validateIdentifier(column);
       const operand = determineSingleFilterOperand(operator, operands);
       if (operand.theType !== "str" || !operand.value) {
         throw new Error(
@@ -404,6 +406,7 @@ export class CreateWhereClause {
   }
 
   private createSelector(column: string): string {
+    validateIdentifier(column);
     if (this.specificMetadataColumns.includes(column)) {
       return `"${column}"`;
     } else {

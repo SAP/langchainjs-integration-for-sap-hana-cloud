@@ -21,6 +21,7 @@ import { CreateWhereClause, Filter } from "./createWhereClause.js";
 import {
   generateCrossEncodingSqlAndParams,
   sanitizeMetadataKeys,
+  validateIdentifier,
   validateRerankModelId,
 } from "./utils.js";
 import { Callbacks } from "@langchain/core/callbacks/manager";
@@ -527,6 +528,12 @@ export class HanaDB extends VectorStore {
       this.internalEmbeddingRemoteSourceSchema = (
         embeddings as HanaInternalEmbeddings
       ).getRemoteSourceSchema();
+      if (this.internalEmbeddingRemoteSourceSchema) {
+        validateIdentifier(this.internalEmbeddingRemoteSourceSchema);
+      }
+      if (this.internalEmbeddingRemoteSource) {
+        validateIdentifier(this.internalEmbeddingRemoteSource);
+      }
     } else {
       this.useInternalEmbeddings = false;
       this.internalEmbeddingModelId = "";

@@ -1,14 +1,21 @@
 import { Connection, HanaParameterType } from "@sap/hana-client";
 import { executeStatement, prepareQuery } from "../hanautils.js";
 
-export const compiledPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+const _VALID_IDENTIFIER_RE = /^[_a-zA-Z][_a-zA-Z0-9]*$/;
+
+/**Raise an error if name is not a safe SQL/JSON identifier.*/
+export function validateIdentifier(name: string): void {
+  if (!_VALID_IDENTIFIER_RE.test(name)) {
+    throw new Error(
+      `Invalid identifier '${name}': only letters, digits, and underscores are allowed, and it must not start with a digit.`
+    );
+  }
+}
 
 /**Validate that all metadata keys are valid identifiers.*/
 export function sanitizeMetadataKeys(metadataKeys: string[]): void {
   metadataKeys.forEach((key) => {
-    if (!compiledPattern.test(key)) {
-      throw new Error(`Invalid metadata key ${key}`);
-    }
+    validateIdentifier(key);
   });
 }
 

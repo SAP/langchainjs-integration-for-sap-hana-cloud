@@ -357,7 +357,7 @@ export const TYPE_4B_FILTERING_TEST_CASES: FilteringTestCase[] = [
 ];
 
 export const TYPE_5_FILTERING_TEST_CASES: FilteringTestCase[] = [
-  // These involve special operators like $like, $ilike that
+  // These involve special operators like $like, $contains that
   // may be specified to certain databases.
   [
     { name: { $like: "a%" } },
@@ -370,6 +370,18 @@ export const TYPE_5_FILTERING_TEST_CASES: FilteringTestCase[] = [
     [1, 3],
     "WHERE JSON_VALUE(VEC_META, '$.name') LIKE TO_NVARCHAR(?)",
     ["%a%"],
+  ],
+  [
+    { name: { $contains: "adam" } },
+    [1],
+    "WHERE SCORE(TO_NVARCHAR(?) IN (\"name\" EXACT SEARCH MODE 'text')) > 0",
+    ["adam"],
+  ],
+  [
+    { name: { $contains: "bob" } },
+    [2],
+    "WHERE SCORE(TO_NVARCHAR(?) IN (\"name\" EXACT SEARCH MODE 'text')) > 0",
+    ["bob"],
   ],
 ];
 
