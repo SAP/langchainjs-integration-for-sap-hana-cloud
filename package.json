@@ -41,18 +41,18 @@
   "dependencies": {
     "@sap/hana-client": "^2.29.25",
     "@traqula/parser-sparql-1-1": "^1.1.8",
-    "n3": "^2.1.1",
-    "zod": "^4.4.3"
+    "n3": "^2.1.2"
   },
   "peerDependencies": {
     "@langchain/classic": "^1.0.38",
-    "@langchain/core": "^1.2.1",
-    "langchain": "^1.5.2"
+    "@langchain/core": "^1.2.4",
+    "langchain": "^1.5.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@eslint/js": "^9.39.5",
-    "@langchain/core": "^1.2.3",
+    "@langchain/core": "^1.2.4",
     "@langchain/textsplitters": "^1.0.1",
     "@sap-ai-sdk/langchain": "^2.13.0",
     "@types/n3": "^1.26.1",
@@ -68,13 +68,14 @@
     "eslint-plugin-prettier": "^5.5.6",
     "langchain": "^1.5.4",
     "prettier": "^3.9.6",
-    "publint": "^0.3.22",
+    "publint": "^0.3.23",
     "rdf-isomorphic": "^2.0.1",
     "tsdown": "^0.21.10",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.65.0",
+    "typescript-eslint": "^8.66.0",
     "unplugin-unused": "^0.5.7",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "zod": "^4.4.3"
   },
   "publishConfig": {
     "access": "public"
