@@ -2,6 +2,7 @@ import { Connection } from "@sap/hana-client";
 import {
   executeQuery,
   executeStatement,
+  getTableRef,
   prepareQuery,
 } from "../../src/hanautils.js";
 
@@ -68,7 +69,14 @@ export class HanaTestUtils {
     await executeQuery(client, `SET SCHEMA ${schemaName}`);
   }
 
-  static async dropTable(client: Connection, tableName: string) {
-    await executeQuery(client, `DROP TABLE "${tableName}"`);
+  static async dropTable(
+    client: Connection,
+    tableName: string,
+    schemaName = ""
+  ) {
+    await executeQuery(
+      client,
+      `DROP TABLE ${getTableRef(tableName, schemaName)}`
+    );
   }
 }

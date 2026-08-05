@@ -7,6 +7,17 @@ import {
 
 export type DistanceStrategy = "EUCLIDEAN" | "COSINE";
 
+/**
+ * Returns a quoted, optionally schema-qualified SQL table reference.
+ * Produces `"schema"."table"` when schemaName is non-empty, otherwise `"table"`.
+ */
+export function getTableRef(tableName: string, schemaName = ""): string {
+  if (schemaName) {
+    return `"${schemaName}"."${tableName}"`;
+  }
+  return `"${tableName}"`;
+}
+
 export function validateK(k: number) {
   if (!Number.isInteger(k) || k <= 0) {
     throw new Error("Parameter 'k' must be an integer greater than 0");

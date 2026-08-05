@@ -34,6 +34,14 @@ const args: HanaDBArgs = {
   tableName: "testBasics",
 };
 
+// Optionally, you can specify a schema name
+// if your table is not in the current set schema:
+// const args: HanaDBArgs = {
+//   connection: client,
+//   tableName: "testBasics",
+//   schemaName: "MY_SCHEMA",
+// };
+
 // Create a LangChain VectorStore interface for the HANA database and specify the table (collection) to use in args.
 const vectorStore = new HanaDB(embeddings, args);
 // need to initialize once an instance is created.
