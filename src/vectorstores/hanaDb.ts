@@ -12,6 +12,7 @@ import {
   executeBatchStatement,
   executeQuery,
   executeStatement,
+  getTableRef,
   prepareQuery,
   validateK,
   validateKAndFetchK,
@@ -82,11 +83,17 @@ export interface RerankConfigOptions {
  *                                    instead of parsing from a single JSON metadata column.
  *                                    Useful when querying/filtering on individual metadata fields.
  *                                    @default undefined
+ *
+ * @property schemaName               [optional] Name of the database schema that contains the table.
+ *                                    When provided, all SQL operations will qualify the table name as
+ *                                    `"schemaName"."tableName"`. When omitted, the current schema is used.
+ *                                    @default undefined
  */
 export interface HanaDBArgs {
   connection: Connection;
   distanceStrategy?: DistanceStrategy;
   tableName?: string;
+  schemaName?: string;
   contentColumn?: string;
   metadataColumn?: string;
   vectorColumn?: string;
@@ -116,6 +123,8 @@ export class HanaDB extends VectorStore {
 
   private specificMetadataColumns: string[];
 
+  private schemaName: string;
+
   private useInternalEmbeddings: boolean;
 
   private internalEmbeddingModelId: string;
@@ -126,6 +135,10 @@ export class HanaDB extends VectorStore {
 
   _vectorstoreType(): string {
     return "hanadb";
+  }
+
+  private get tableRef(): string {
+    return getTableRef(this.tableName, this.schemaName);
   }
 
   public getSpecificMetadataColumns(): string[] {
@@ -214,7 +227,7 @@ export class HanaDB extends VectorStore {
     return (
       `WITH ${INTERMEDIATE_TABLE_NAME} AS (` +
       `SELECT *, ${metadataColumns.join(", ")} ` +
-      `FROM "${this.tableName}")`
+      `FROM ${this.tableRef})`
     );
   }
 
@@ -483,6 +496,7 @@ export class HanaDB extends VectorStore {
       args.specificMetadataColumns || []
     );
     this.connection = args.connection;
+    this.schemaName = HanaDB.sanitizeName(args.schemaName || "");
 
     // Set the embedding and decide whether to use internal embedding
     this._setEmbeddings(embeddings);
@@ -574,7 +588,7 @@ export class HanaDB extends VectorStore {
     const tableExists = await this.tableExists(this.tableName);
     if (!tableExists) {
       let sqlStr =
-        `CREATE TABLE "${this.tableName}" (` +
+        `CREATE TABLE ${this.tableRef} (` +
         `"${this.contentColumn}" NCLOB, ` +
         `"${this.metadataColumn}" NCLOB, ` +
         `"${this.vectorColumn}" ${this.vectorColumnType}`;
@@ -610,8 +624,11 @@ export class HanaDB extends VectorStore {
   }
 
   public async tableExists(tableName: string): Promise<boolean> {
-    const tableExistsSQL = `SELECT COUNT(*) AS COUNT FROM SYS.TABLES WHERE SCHEMA_NAME = CURRENT_SCHEMA AND TABLE_NAME = ?`;
-    const client = this.connection; // Get the connection object
+    const schemaCondition = this.schemaName
+      ? `SCHEMA_NAME = '${this.schemaName}'`
+      : `SCHEMA_NAME = CURRENT_SCHEMA`;
+    const tableExistsSQL = `SELECT COUNT(*) AS COUNT FROM SYS.TABLES WHERE ${schemaCondition} AND TABLE_NAME = ?`;
+    const client = this.connection;
 
     const stm = await prepareQuery(client, tableExistsSQL);
     const resultSet = await executeStatement(stm, [tableName]);
@@ -635,13 +652,16 @@ export class HanaDB extends VectorStore {
     columnType?: string | string[],
     columnLength?: number
   ): Promise<void> {
+    const schemaCondition = this.schemaName
+      ? `SCHEMA_NAME = '${this.schemaName}'`
+      : `SCHEMA_NAME = CURRENT_SCHEMA`;
     const sqlStr = `
-            SELECT DATA_TYPE_NAME, LENGTH 
-            FROM SYS.TABLE_COLUMNS 
-            WHERE SCHEMA_NAME = CURRENT_SCHEMA 
-            AND TABLE_NAME = ? 
+            SELECT DATA_TYPE_NAME, LENGTH
+            FROM SYS.TABLE_COLUMNS
+            WHERE ${schemaCondition}
+            AND TABLE_NAME = ?
             AND COLUMN_NAME = ?`;
-    const client = this.connection; // Get the connection object
+    const client = this.connection;
     // Prepare the statement with parameter placeholders
     const stm = await prepareQuery(client, sqlStr);
     // Execute the query with actual parameters to avoid SQL injection
@@ -922,7 +942,7 @@ export class HanaDB extends VectorStore {
       : "";
 
     // Create the base SQL string for index creation
-    let sqlStr = `CREATE HNSW VECTOR INDEX ${finalIndexName} ON "${this.tableName}" ("${this.vectorColumn}") 
+    let sqlStr = `CREATE HNSW VECTOR INDEX ${finalIndexName} ON ${this.tableRef} ("${this.vectorColumn}")
                   SIMILARITY FUNCTION ${distanceFuncName} `;
 
     // Append buildConfig to the SQL string if provided
@@ -1015,7 +1035,7 @@ export class HanaDB extends VectorStore {
       .join("");
 
     // Insert data into the table, bulk insert.
-    const sqlStr = `INSERT INTO "${this.tableName}" ("${this.contentColumn}", "${this.metadataColumn}", "${this.vectorColumn}"${specificMetadataColumnsString})
+    const sqlStr = `INSERT INTO ${this.tableRef} ("${this.contentColumn}", "${this.metadataColumn}", "${this.vectorColumn}"${specificMetadataColumnsString})
                     VALUES (?, ?, ?${extraPlaceholders});`;
     const stm = await prepareQuery(client, sqlStr);
     await executeBatchStatement(stm, sqlParams);
@@ -1064,7 +1084,7 @@ export class HanaDB extends VectorStore {
       this.convertVectorEmbeddingToColumnType(vectorEmbeddingSql);
 
     // Insert data into the table, bulk insert.
-    const sqlStr = `INSERT INTO "${this.tableName}" ("${
+    const sqlStr = `INSERT INTO ${this.tableRef} ("${
       this.contentColumn
     }", "${this.metadataColumn}", "${
       this.vectorColumn
@@ -1205,7 +1225,7 @@ export class HanaDB extends VectorStore {
       .join("");
 
     // Insert data into the table, bulk insert.
-    const sqlStr = `INSERT INTO "${this.tableName}" ("${this.contentColumn}", "${this.metadataColumn}", "${this.vectorColumn}"${specificMetadataColumnsString})
+    const sqlStr = `INSERT INTO ${this.tableRef} ("${this.contentColumn}", "${this.metadataColumn}", "${this.vectorColumn}"${specificMetadataColumnsString})
                     VALUES (?, ?, ?${extraPlaceholders});`;
     const stm = await prepareQuery(client, sqlStr);
     await executeBatchStatement(stm, sqlParams);
@@ -1276,7 +1296,7 @@ export class HanaDB extends VectorStore {
     }
 
     const [whereStr, queryTuple] = new CreateWhereClause(this).build(filter);
-    const sqlStr = `DELETE FROM "${this.tableName}" ${whereStr}`;
+    const sqlStr = `DELETE FROM ${this.tableRef} ${whereStr}`;
     const client = this.connection;
     const stm = await prepareQuery(client, sqlStr);
     await executeStatement(stm, queryTuple);
@@ -1501,7 +1521,7 @@ export class HanaDB extends VectorStore {
     // Keyword search: extract metadata columns used with $contains
     const projectedMetadataColumns = this.extractKeywordSearchColumns(filter);
     let metadataProjection = "";
-    let fromClause = `"${this.tableName}"`;
+    let fromClause = this.tableRef;
     if (projectedMetadataColumns.length > 0) {
       metadataProjection = this.createMetadataProjection(
         projectedMetadataColumns
