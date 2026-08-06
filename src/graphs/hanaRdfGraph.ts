@@ -324,4 +324,13 @@ export class HanaRdfGraph {
   getSchema(): N3Store {
     return this.schema;
   }
+
+  /**
+   * Returns the FROM clause used to scope SPARQL queries to this graph.
+   *
+   * @returns The FROM clause (e.g. `FROM <http://example.com/graph>` or `FROM DEFAULT`).
+   */
+  getFromClause(): string {
+    return this.fromClause;
+  }
 }

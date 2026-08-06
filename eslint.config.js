@@ -63,7 +63,7 @@ export default tseslint.config(
       "import/extensions": [2, "ignorePackages"],
       "import/no-extraneous-dependencies": [
         "error",
-        { devDependencies: ["**/*.test.ts", "examples/**"] },
+        { devDependencies: ["**/*.test.ts", "tests/**", "examples/**"] },
       ],
       "import/no-unresolved": 0,
       "import/prefer-default-export": 0,
