@@ -106,7 +106,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       
       - name: Install latest npm cli
-        run: npm install -g npm@latest
+        run: npm install -g npm@11
 
       - name : Download built package artifact
         uses: actions/download-artifact@v8
