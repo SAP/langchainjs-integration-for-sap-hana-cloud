@@ -1,6 +1,94 @@
-import { describe, expect, it, test } from "vitest";
+import { describe, expect, it, test, vi } from "vitest";
 import { validateK, validateKAndFetchK } from "../../src/hanautils.js";
-import { HanaDB } from "../../src/index.js";
+import { HanaDB, HanaInternalEmbeddings } from "../../src/index.js";
+import { validateIdentifier } from "../../src/vectorstores/utils.js";
+
+const BAD_IDENTIFIERS = [
+  "schema'; DROP TABLE users--",
+  "schema OR 1=1",
+  "schema name",
+  "1schema",
+  "schema-name",
+  "schema.name",
+  "col\n",
+  "",
+];
+
+const VALID_IDENTIFIERS = ["valid_col", "_leading_underscore", "Col123", "a"];
+
+describe("validateIdentifier", () => {
+  test.each(VALID_IDENTIFIERS)("accepts valid name: %s", (name) => {
+    expect(() => validateIdentifier(name)).not.toThrow();
+  });
+
+  test.each(BAD_IDENTIFIERS)("rejects invalid name: %s", (name) => {
+    expect(() => validateIdentifier(name)).toThrow("Invalid identifier");
+  });
+});
+
+function makeHanaDb(embedding: HanaInternalEmbeddings): HanaDB {
+  const mockInitializeTable = vi
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .spyOn(HanaDB.prototype as any, "initializeTable")
+    .mockResolvedValue(undefined);
+  const mockValidateInternal = vi
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .spyOn(HanaDB.prototype as any, "validateInternalEmbeddingFunction")
+    .mockResolvedValue(undefined);
+  const mockSanitizeVectorColumnType = vi
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .spyOn(HanaDB as any, "sanitizeVectorColumnType")
+    .mockReturnValue("REAL_VECTOR");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = new HanaDB(embedding, { connection: {} as any });
+
+  mockInitializeTable.mockRestore();
+  mockValidateInternal.mockRestore();
+  mockSanitizeVectorColumnType.mockRestore();
+
+  return db;
+}
+
+describe("HanaDB remote source validation", () => {
+  test.each(BAD_IDENTIFIERS.filter(Boolean))(
+    "invalid remoteSourceSchema raises: %s",
+    (bad) => {
+      const embedding = new HanaInternalEmbeddings({
+        internalEmbeddingModelId: "model",
+        remoteSourceSchema: bad,
+        remoteSource: "valid_source",
+      });
+      expect(() => makeHanaDb(embedding)).toThrow("Invalid identifier");
+    }
+  );
+
+  test.each(BAD_IDENTIFIERS.filter(Boolean))(
+    "invalid remoteSource raises: %s",
+    (bad) => {
+      const embedding = new HanaInternalEmbeddings({
+        internalEmbeddingModelId: "model",
+        remoteSourceSchema: "valid_schema",
+        remoteSource: bad,
+      });
+      expect(() => makeHanaDb(embedding)).toThrow("Invalid identifier");
+    }
+  );
+
+  test.each(VALID_IDENTIFIERS)(
+    "valid remoteSource and schema accepted: %s",
+    (valid) => {
+      const embedding = new HanaInternalEmbeddings({
+        internalEmbeddingModelId: "model",
+        remoteSourceSchema: valid,
+        remoteSource: valid,
+      });
+      const db = makeHanaDb(embedding);
+      expect(db["internalEmbeddingRemoteSourceSchema"]).toBe(valid);
+      expect(db["internalEmbeddingRemoteSource"]).toBe(valid);
+    }
+  );
+});
 
 describe("Sanity check tests", () => {
   it("should sanitize int with illegal value", () => {

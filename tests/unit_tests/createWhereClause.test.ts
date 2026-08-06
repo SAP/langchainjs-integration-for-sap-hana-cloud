@@ -45,3 +45,45 @@ describe("where clause creation tests", () => {
     );
   });
 });
+
+const INJECTION_COLUMN_NAMES = [
+  "col') FROM DUAL UNION SELECT * FROM SYS.USERS--",
+  'col"evil',
+  "col; DROP TABLE users--",
+  "col OR 1=1",
+  "col/*comment*/",
+  "1col",
+  "col name",
+  "col-name",
+  "col.name",
+];
+
+describe("SQL injection via filter key raises", () => {
+  test.each(INJECTION_COLUMN_NAMES)("filter key: %s", (badColumn) => {
+    expect(() =>
+      new CreateWhereClause(dummyHanaDB).build({ [badColumn]: "value" })
+    ).toThrow("Invalid identifier");
+  });
+});
+
+describe("SQL injection via $contains filter key raises", () => {
+  test.each(INJECTION_COLUMN_NAMES)("$contains key: %s", (badColumn) => {
+    expect(() =>
+      new CreateWhereClause(dummyHanaDB).build({
+        [badColumn]: { $contains: "search term" },
+      })
+    ).toThrow("Invalid identifier");
+  });
+});
+
+describe("valid column names accepted", () => {
+  test.each(["name", "my_column", "_private", "col123", "CamelCase"])(
+    "column: %s",
+    (goodColumn) => {
+      const [clause] = new CreateWhereClause(dummyHanaDB).build({
+        [goodColumn]: "value",
+      });
+      expect(clause).toContain(goodColumn);
+    }
+  );
+});

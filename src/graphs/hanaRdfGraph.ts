@@ -59,6 +59,18 @@ export class HanaRdfGraph {
 
   private schema: N3Store;
 
+  // Characters forbidden inside a SPARQL IRIREF per the SPARQL 1.1 grammar.
+  // eslint-disable-next-line no-control-regex
+  private static readonly FORBIDDEN_IRI_CHARS = /[\x00-\x20\x7f<>"{}|\\^`]/;
+
+  public static validateIri(uri: string): void {
+    if (HanaRdfGraph.FORBIDDEN_IRI_CHARS.test(uri)) {
+      throw new Error(
+        `Invalid IRI '${uri}': contains characters not allowed in a SPARQL IRI reference.`
+      );
+    }
+  }
+
   /**
    * Creates a new HanaRdfGraph instance.
    *
@@ -69,6 +81,7 @@ export class HanaRdfGraph {
     if (!options.graphUri || options.graphUri?.toUpperCase() === "DEFAULT") {
       this.fromClause = "FROM DEFAULT";
     } else {
+      HanaRdfGraph.validateIri(options.graphUri);
       this.fromClause = `FROM <${options.graphUri}>`;
     }
   }
@@ -119,6 +132,11 @@ export class HanaRdfGraph {
     injectFrom: boolean = true,
     contentType: string = "application/sparql-results+csv"
   ): Promise<string> {
+    if (contentType.includes("\r") || contentType.includes("\n")) {
+      throw new Error(
+        "Invalid content_type: CR/LF characters are not permitted."
+      );
+    }
     const finalQuery = injectFrom ? this.injectFromClause(query) : query;
     const headers = `Accept: ${contentType}\r\nContent-Type: application/sparql-query`;
     const result = await executeSparqlQuery(
@@ -232,6 +250,7 @@ export class HanaRdfGraph {
       );
     } else {
       if (options.ontologyUri) {
+        HanaRdfGraph.validateIri(options.ontologyUri);
         options.ontologyQuery = `CONSTRUCT { ?s ?p ?o } FROM <${options.ontologyUri}> WHERE { ?s ?p ?o . }`;
       }
 
