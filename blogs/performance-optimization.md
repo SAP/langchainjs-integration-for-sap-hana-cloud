@@ -212,9 +212,9 @@ console.log(`Search with HNSW: ${timeWithIndex}ms`);
 ```
 
 ```text
-Search without HNSW: 117ms
-HNSW index created in 1578ms
-Search with HNSW: 205ms
+Search without HNSW: 72ms
+HNSW index created in 1522ms
+Search with HNSW: 105ms
 ```
 
 **Note:** At 25,400 documents, exact search is actually faster than HNSW due to graph traversal overhead. HNSW provides significant speedups at larger scales (100K+ documents) where exact search becomes a bottleneck.
@@ -223,12 +223,12 @@ Search with HNSW: 205ms
 
 | Dataset Size | Exact Search | HNSW Search | Recommendation |
 | ------------ | ------------ | ----------- | -------------- |
-| 25K docs | ~117ms | ~205ms | Use exact search |
-| 100K docs | ~500ms | ~50ms | HNSW recommended |
-| 500K docs | ~2-3s | ~50ms | HNSW essential |
-| 1M+ docs | ~5s+ | ~50ms | HNSW required |
+| 25K docs | ~72ms | ~105ms | Use exact search |
+| 100K docs | ~183ms | ~140ms | HNSW recommended |
+| 500K docs | ~991ms | ~166ms | HNSW essential |
+| 1M+ docs | ~2s+ | ~200ms | HNSW required |
 
-*HNSW search time remains relatively constant regardless of dataset size, while exact search scales linearly.*
+*HNSW search time remains relatively stable (~100-200ms) regardless of dataset size, while exact search scales linearly.*
 
 ---
 

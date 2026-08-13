@@ -65,21 +65,21 @@ await vectorStore.createHnswIndex({
 
 <p>Here&rsquo;s the honest answer, and it surprises people:</p>
 
-<pre><code class="language-text">Search without HNSW: 117ms
-HNSW index created in 1578ms
-Search with HNSW:    205ms
+<pre><code class="language-text">Search without HNSW: 72ms
+HNSW index created in 1522ms
+Search with HNSW:    105ms
 </code></pre>
 
 <p>At <strong>25,400 documents, exact search is actually faster.</strong> The graph-traversal overhead of HNSW outweighs its asymptotic advantage at this size. But scale up and the curves cross dramatically:</p>
 
 <pre><code class="language-text">Dataset Size    Exact Search    HNSW Search    Recommendation
-   25K              ~117ms          ~205ms       Use exact search
-  100K              ~500ms           ~50ms       HNSW recommended
-  500K               ~2-3s           ~50ms       HNSW essential
-   1M+                ~5s+           ~50ms       HNSW required
+   25K               ~72ms          ~105ms       Use exact search
+  100K              ~183ms          ~140ms       HNSW recommended
+  500K              ~991ms          ~166ms       HNSW essential
+   1M+                ~2s+          ~200ms       HNSW required
 </code></pre>
 
-<p>HNSW search time is roughly <em>constant</em> regardless of dataset size. Exact search is <em>linear</em>. The break-even sits somewhere between 50K and 100K documents. Below that, skip the index. Above that, you&rsquo;ll wonder how you ever lived without it.</p>
+<p>HNSW search time remains relatively stable (~100-200ms) regardless of dataset size, while exact search scales linearly.</p>
 
 <h2>Faster filtering: specific metadata columns</h2>
 
