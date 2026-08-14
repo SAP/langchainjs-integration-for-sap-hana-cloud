@@ -375,6 +375,6 @@ Speedup: 1.3x faster with specific columns
 
 - [Vector Engine Guide](./blog-post.md) — Vector search, embeddings, and filtering
 <!-- - [Knowledge Graph Guide](./knowledge-graph-engine.md) — RDF data and SPARQL Q&A -->
-<!-- - [Cross-Encoding Reranking Guide](./cross-encoding-reranking.md) — Improving search quality -->
+- [Cross-Encoding Reranking Guide](./cross-encoding-reranking.md) — Improving search quality
 - [SAP HANA Vector Engine Guide](https://help.sap.com/docs/hana-cloud-database/sap-hana-cloud-sap-hana-database-vector-engine-guide)
 - [GitHub Repository](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud)

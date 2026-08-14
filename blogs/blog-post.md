@@ -734,7 +734,7 @@ const args: HanaDBArgs = {
 <!-- Add these when all blogs are published -->
 <!-- - **Knowledge Graph Guide**: [RDF & SPARQL Q&A](./knowledge-graph-engine.md) -->
 - **Performance Optimization Guide**: [HNSW & Map Merge](./performance-optimization.md)
-<!-- - **Cross-Encoding Reranking Guide**: [Improving Search Quality](./cross-encoding-reranking.md) -->
+- **Cross-Encoding Reranking Guide**: [Improving Search Quality](./cross-encoding-reranking.md)
 
 ---
 

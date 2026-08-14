@@ -1,0 +1,160 @@
+<h1>Sharper Search Results: Cross-Encoding Reranking with SAP HANA Cloud and LangChain.js</h1>
+
+<p>A customer types into your product search:</p>
+
+<blockquote>
+  <p><em>&ldquo;best noise canceling headphones for office work and video calls&rdquo;</em></p>
+</blockquote>
+
+<p>Vector search instantly returns four solid headphones. The order looks fine. <em>Mostly.</em> The AudioMax Pro 5 is on top, the QuietShield Ultra is second, an earbud sneaks into third, an audiophile reference can sits fourth. Technically all relevant. But for someone joining back-to-back Zoom calls, the ranking is a little off, because the truly &ldquo;office-friendly&rdquo; option isn&rsquo;t first.</p>
+
+<p>That&rsquo;s the gap <strong>cross-encoding reranking</strong> closes. With <code>&#64;sap/hana-langchain</code>&rsquo;s <code>HanaReranker</code>, you let a more sophisticated model take a second look at your top candidates and put them in the order your customer actually wants.</p>
+
+<blockquote>
+  <p><strong>Full walkthrough on GitHub:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/cross-encoding-reranking.md" target="_blank" rel="noopener">blogs/cross-encoding-reranking.md</a>. Every code sample, every score, and the full benchmark breakdown.</p>
+</blockquote>
+
+<h2>Why two stages beat one</h2>
+
+<p>Vector search is fast because it&rsquo;s a <em>bi-encoder</em>: the query and each document are encoded into vectors <strong>independently</strong>, then compared with a single dot product. Brilliant at scale, but blind to the subtle interactions between query and document.</p>
+
+<p>A <em>cross-encoder</em> reads the query and the document <strong>together</strong>, token by token, and asks &ldquo;how relevant is this <em>specific</em> document to this <em>specific</em> query?&rdquo; Slower per pair, dramatically more accurate.</p>
+
+<p>The winning pattern combines both:</p>
+
+<pre><code class="language-text">User Query
+    │
+    ▼
+┌─────────────────────┐
+│  Vector Search      │  Fast, approximate
+│  (Bi-encoder)       │  Returns top 20 candidates
+└─────────────────────┘
+    │
+    ▼
+┌─────────────────────┐
+│  Cross-Encoder      │  Slower, precise
+│  Reranking          │  Returns top 5 best matches
+└─────────────────────┘
+    │
+    ▼
+Final Results (highly relevant)
+</code></pre>
+
+<p>Cast a wide net cheaply, then let the smarter (and pricier) model pick the actual winners.</p>
+
+<h2>The headphones story, with and without reranking</h2>
+
+<p>Same six-product catalogue. Same query: <em>&ldquo;best noise canceling headphones for office work and video calls&rdquo;</em>. First, plain vector search:</p>
+
+<pre><code class="language-text">Vector Search Results (may not be optimally ordered):
+  1. AudioMax Pro 5
+  2. QuietShield Ultra
+  3. AudioMax Buds 5
+  4. StudioRef HD 560
+</code></pre>
+
+<p>Now we plug in <code>HanaReranker</code>. Two-stage retrieval is one extra line:</p>
+
+<pre><code class="language-typescript">import { HanaReranker } from "@sap/hana-langchain";
+
+const reranker = new HanaReranker(client, "SAP_CER.20250701");
+await reranker.initialize();
+
+// Stage 1: cast a wide net with vector search
+const candidates = await productStore.similaritySearch(searchQuery, 6);
+
+// Stage 2: let the cross-encoder reorder for precise relevance
+const reranked = await reranker.rerank(candidates, searchQuery, 4);
+</code></pre>
+
+<pre><code class="language-text">Reranked Results (optimized for "office work and video calls"):
+  1. QuietShield Ultra (relevance: 0.52)
+  2. AudioMax Buds 5 (relevance: 0.46)
+  3. AudioMax Pro 5 (relevance: 0.42)
+  4. StudioRef HD 560 (relevance: 0.05)
+</code></pre>
+
+<p>Look at what happened. The QuietShield Ultra, whose description specifically calls out <em>&ldquo;world-class noise cancellation&rdquo;</em>, jumps to the top. The reference-grade StudioRef, perfect for music but irrelevant for calls, gets pushed down with a near-zero score. The cross-encoder didn&rsquo;t just &ldquo;find similar text.&rdquo; It understood the <em>job</em> the customer was hiring the headphones to do.</p>
+
+<h2>Reranking inside a single call</h2>
+
+<p>Don&rsquo;t want to manage two stages by hand? Pass a <code>RerankConfigOptions</code> straight into <code>similaritySearch</code> and the library does both behind one method call:</p>
+
+<pre><code class="language-typescript">import { RerankConfigOptions } from "@sap/hana-langchain";
+
+const rerankConfig: RerankConfigOptions = {
+  modelId: "SAP_CER.20250701",
+  topN: 3,
+};
+
+const results = await productStore.similaritySearch(
+  "noise canceling headphones for travel",
+  6,         // pull 6 candidates internally
+  undefined, // no metadata filter
+  undefined, // no callbacks
+  rerankConfig,
+);
+</code></pre>
+
+<p>You hand it the query, it hands you back the top three, already reranked and already wrapped as <code>Document</code> objects, ready for your UI or LLM prompt.</p>
+
+<h2>Boosting accuracy with metadata-aware reranking</h2>
+
+<p>What about <em>&ldquo;affordable wireless headphones with long battery&rdquo;</em>? Pure content-based reranking can miss the point, because the word &ldquo;affordable&rdquo; doesn&rsquo;t live in any product description. But the TuneCore 510 is literally <em>&ldquo;budget-friendly&rdquo;</em> with <em>&ldquo;40-hour battery life&rdquo;</em> in its name and category metadata.</p>
+
+<p>Tell the reranker to score against those fields too:</p>
+
+<pre><code class="language-typescript">const rerankConfig: RerankConfigOptions = {
+  modelId: "SAP_CER.20250701",
+  topN: 3,
+  rankFields: ["name", "category"], // include in scoring
+};
+</code></pre>
+
+<pre><code class="language-text">[
+  { name: 'TuneCore 510',  price:  49.99 },   // jumps to #1 thanks to &quot;affordable&quot; + 40-hour battery
+  { name: 'AudioMax Pro 5', price: 349.99 },
+  { name: 'AudioMax Buds 5', price: 299.99 }
+]
+</code></pre>
+
+<p>The budget TuneCore, easy to overlook in pure content scoring, leaps to first place. Especially powerful when you have <em>structured</em> relevance signals: brand names, categories, tags, SKU prefixes.</p>
+
+<h2>One more drop-in: the document compressor pattern</h2>
+
+<p><code>HanaReranker</code> implements LangChain&rsquo;s <code>BaseDocumentCompressor</code> interface, so it slots cleanly into existing retrieval pipelines:</p>
+
+<pre><code class="language-typescript">const candidates = await productStore.similaritySearch("best headphones for music", 4);
+const compressed = await reranker.compressDocuments(candidates, "best headphones for music production");
+</code></pre>
+
+<p>And the &ldquo;music production&rdquo; query surfaces the StudioRef HD 560, with its &ldquo;critical listening and mixing&rdquo; description, right where it belongs:</p>
+
+<pre><code class="language-text">[
+  { name: 'StudioRef HD 560', relevance_score: 0.57 },   // music producer's pick
+  { name: 'AudioMax Pro 5',    relevance_score: 0.35 },
+  { name: 'QuietShield Ultra',      relevance_score: 0.20 },
+  { name: 'TuneCore 510',     relevance_score: 0.18 }
+]
+</code></pre>
+
+<p>Each result comes back with its <code>relevance_score</code> tucked into metadata, handy for UI badges, threshold filtering, or downstream re-weighting.</p>
+
+<h2>The cheat sheet</h2>
+
+<ul>
+  <li><strong>Retrieve more, rerank fewer.</strong> 20 to 30 candidates narrowed down to a top 5 is a sweet spot for real-time search. The wider the net at stage 1, the more raw material the cross-encoder has to work with.</li>
+  <li><strong>Pre-filter with metadata.</strong> If you can narrow the candidate set with a <code>category</code> or <code>in_stock</code> filter <em>before</em> reranking, you save cross-encoder cycles for the documents that actually matter.</li>
+  <li><strong>Use <code>rankFields</code> when names and tags carry meaning.</strong> Product names, document titles, and category labels often hold the signal that pure body text misses.</li>
+  <li><strong>Especially valuable for RAG.</strong> Feeding an LLM the top three reranked passages instead of the top three vector hits is one of the highest-leverage upgrades you can make to answer quality.</li>
+</ul>
+
+<h2>Where to take this next</h2>
+
+<ul>
+  <li><strong>The companion piece on the foundations:</strong> <a href="https://community.sap.com/t5/technology-blog-posts-by-sap/building-vector-search-applications-with-sap-hana-cloud-and-langchain-js/ba-p/14413474">Vector Search with SAP HANA Cloud and LangChain.js</a>. Start here if you haven&rsquo;t set up <code>HanaDB</code> yet.</li>
+  <li><strong>Beyond similarity:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/examples/graphs/basics.ts">Knowledge Graphs &amp; SPARQL</a> for relationship-rich queries.</li>
+  <li><strong>Make it production-fast:</strong> <a href="https://community.sap.com/t5/technology-blog-posts-by-sap/performance-optimization-with-langchain-js-and-sap-hana-cloud/ba-p/14415223">Performance Optimization</a> with Map Merge, HNSW indexes, and specific metadata columns.</li>
+</ul>
+
+<p><strong>Get the code:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud" target="_blank" rel="noopener">SAP/langchainjs-integration-for-sap-hana-cloud</a> &nbsp;|&nbsp; <strong>Read the full guide:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/cross-encoding-reranking.md" target="_blank" rel="noopener">cross-encoding-reranking.md</a></p>
