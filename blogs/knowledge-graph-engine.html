@@ -1,0 +1,180 @@
+<h1>Knowledge Graphs with SAP HANA Cloud and LangChain.js</h1>
+
+<p>Vector search is brilliant when your question is fuzzy. But some questions aren&rsquo;t fuzzy at all. They&rsquo;re structural.</p>
+
+<blockquote>
+  <p><em>&ldquo;Which countries had treaties with both the USA and the USSR during the Cold War?&rdquo;</em></p>
+</blockquote>
+
+<p>That&rsquo;s not a similarity question. That&rsquo;s a <em>graph</em> question. And SAP HANA Cloud&rsquo;s <strong>Knowledge Graph Engine</strong> answers it in milliseconds, natively, with SPARQL, directly inside the database where your data already lives.</p>
+
+<p>With <code>&#64;sap/hana-langchain</code>&rsquo;s <code>HanaRdfGraph</code>, you can connect to that engine in two lines and start asking questions about <em>relationships</em>, not just text.</p>
+
+<blockquote>
+  <p><strong>Full walkthrough on GitHub:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/knowledge-graph-engine.md" target="_blank" rel="noopener">blogs/knowledge-graph-engine.md</a>. Every code sample, every query, and every output.</p>
+</blockquote>
+
+<h2>Two lines, one knowledge graph</h2>
+
+<p>Once your HANA Cloud instance has the <strong>triplestore feature</strong> enabled (ask your admin), connecting is a one-liner:</p>
+
+<pre><code class="language-typescript">import { HanaRdfGraph } from "@sap/hana-langchain";
+
+const graph = new HanaRdfGraph({
+  connection: client,
+  graphUri: "http://company.example.com/org-chart",
+  autoExtractOntology: true, // infer the schema from the data
+});
+await graph.initialize(graphOptions);
+</code></pre>
+
+<p>That <code>autoExtractOntology: true</code> flag is the magic dust for prototyping. It walks your data, figures out the classes and predicates, and hands you a working schema. No <code>.ttl</code> file, no manual modeling. When you&rsquo;re ready to harden things up, swap it for an explicit ontology file or a custom <code>CONSTRUCT</code> query.</p>
+
+<h2>The Cold-War dataset, in 2,024 triples</h2>
+
+<p>Let&rsquo;s make this concrete with a real dataset: the open-source <a href="https://github.com/dongwookim-ml/kg-data/tree/master/nation" target="_blank" rel="noopener">nations dataset</a>, <strong>2,024 triples</strong> describing the diplomatic web between fourteen nations during the Cold War era. Treaties. Economic aid. Embassies. Military alliances. Trade.</p>
+
+<p>Loading it into HANA is a single SPARQL <code>INSERT</code>:</p>
+
+<pre><code class="language-text">Loaded 2024 triples into Nations graph
+</code></pre>
+
+<p>Now we can ask the database questions that simply <em>cannot</em> be expressed as a SQL <code>WHERE</code> clause.</p>
+
+<h2>Question one: who had treaties with the USA?</h2>
+
+<pre><code class="language-typescript">const usaTreaties = await graph.query(`
+  SELECT ?country
+  WHERE {
+    ?country &lt;treaties&gt; &lt;USA&gt; .
+  }
+  ORDER BY ?country
+`);
+</code></pre>
+
+<p>And the answer comes back, ready to drop into a UI table:</p>
+
+<pre><code class="language-text">country
+Brazil
+Cuba
+Egypt
+India
+Israel
+Netherlands
+Poland
+UK
+USSR
+</code></pre>
+
+<p>One predicate (<code>treaties</code>), three lines of SPARQL, and you&rsquo;ve traversed the entire graph.</p>
+
+<h2>Question two: who&rsquo;s receiving aid from <em>multiple</em> donors?</h2>
+
+<p>Now things get interesting. Try doing this with joins:</p>
+
+<pre><code class="language-typescript">const multiAid = await graph.query(`
+  SELECT ?recipient (COUNT(?donor) AS ?donorCount)
+  WHERE {
+    ?donor &lt;economicaid&gt; ?recipient .
+  }
+  GROUP BY ?recipient
+  HAVING (COUNT(?donor) &gt; 1)
+  ORDER BY DESC(?donorCount)
+`);
+</code></pre>
+
+<pre><code class="language-text">recipient,donorCount
+India,3
+Egypt,2
+Jordan,2
+</code></pre>
+
+<p>India is being funded by three different superpowers. Egypt and Jordan by two. The dataset has just told us the geopolitical hot zones, and the SPARQL reads almost like the English question.</p>
+
+<h2>Question three: who has <em>mutual</em> treaties?</h2>
+
+<p>This is where graphs really earn their keep. A <em>bilateral</em> relationship means &ldquo;A has a treaty with B <strong>and</strong> B has a treaty with A&rdquo;: a graph cycle of length two. In SQL, painful. In SPARQL, the pattern is the query:</p>
+
+<pre><code class="language-typescript">const bilateral = await graph.query(`
+  SELECT DISTINCT ?country1 ?country2
+  WHERE {
+    ?country1 &lt;treaties&gt; ?country2 .
+    ?country2 &lt;treaties&gt; ?country1 .
+    FILTER (STR(?country1) &lt; STR(?country2))
+  }
+  ORDER BY ?country1 ?country2
+`);
+</code></pre>
+
+<pre><code class="language-text">country1,country2
+Brazil,USA
+Burma,China
+China,Cuba
+China,Egypt
+China,Indonesia
+China,Poland
+China,USSR
+Cuba,UK
+Cuba,USA
+... (and so on, 26 mutual relationships in total)
+USA,USSR
+</code></pre>
+
+<p>Yes, even at the height of the Cold War, the USA and USSR had bilateral treaties. The graph knows.</p>
+
+<h2>One graph, four ways to load its schema</h2>
+
+<p>Different teams, different workflows. <code>HanaRdfGraph</code> supports four ontology-loading strategies so you can match your data-management style:</p>
+
+<ul>
+  <li><strong>Auto-extract:</strong> fastest path, perfect for prototyping or when the schema is implicit in your triples.</li>
+  <li><strong>Separate graph:</strong> point <code>ontologyUri</code> at a named graph that holds your <code>owl:Class</code> and <code>rdfs:Property</code> definitions.</li>
+  <li><strong>Local Turtle file:</strong> keep your ontology in version control alongside your code (<code>./ontologies/product-schema.ttl</code>).</li>
+  <li><strong>Custom <code>CONSTRUCT</code> query:</strong> surgical control over exactly which schema elements get extracted.</li>
+</ul>
+
+<p>Start with auto-extract; promote to a hand-curated ontology when production calls for it. Same code, different config.</p>
+
+<h2>Where this gets really powerful</h2>
+
+<p>Knowledge graphs alone are excellent. Knowledge graphs <em>combined</em> with vector search are next-level. Imagine a customer-success app where the graph tells you <em>which</em> customers placed more than 100 orders, and the vector store tells you <em>what</em> they&rsquo;re currently complaining about:</p>
+
+<pre><code class="language-typescript">// Semantic side: what are they saying?
+const complaints = await vectorStore.similaritySearch(
+  "customer complaints about delivery",
+  5,
+);
+
+// Structural side: who are the high-value customers?
+const vips = await graph.query(`
+  SELECT ?customer ?orderCount WHERE {
+    ?customer a :Customer ;
+              :totalOrders ?orderCount .
+    FILTER (?orderCount &gt; 100)
+  }
+`);
+
+// Join the two sides in your application and you have a feature
+// that no single retrieval technique could deliver.
+</code></pre>
+
+<p>That intersection of fuzzy intent <em>plus</em> hard structural facts is where the real product magic happens. Both stores live inside the same HANA Cloud instance, so there&rsquo;s no second database to operate, no ETL pipeline to maintain, no consistency drift.</p>
+
+<h2>The cheat sheet</h2>
+
+<ul>
+  <li><strong>Document your ontology like you&rsquo;d document an API.</strong> <code>rdfs:label</code> and <code>rdfs:comment</code> aren&rsquo;t just for humans; they&rsquo;re the prompt context an LLM uses to write good SPARQL.</li>
+  <li><strong>Auto-extract for prototypes, explicit ontology for production.</strong> Move from <code>autoExtractOntology: true</code> to a curated <code>.ttl</code> as your data model stabilises.</li>
+  <li><strong>Lean on HANA&rsquo;s SPARQL endpoint.</strong> Aggregations, path queries, and graph traversals all run inside the database. No application-side joins, no round-trips per hop.</li>
+  <li><strong>Combine with <code>HanaDB</code>.</strong> Structural questions and semantic questions are usually two halves of the same answer. Use both.</li>
+</ul>
+
+<h2>Where to take this next</h2>
+
+<ul>
+  <li><strong>Foundations first:</strong> <a href="https://community.sap.com/t5/technology-blog-posts-by-sap/building-vector-search-applications-with-sap-hana-cloud-and-langchain-js/ba-p/14413474">Vector Search with SAP HANA Cloud and LangChain.js</a>. Set up <code>HanaDB</code>, semantic search, and self-querying retrievers.</li>
+  <li><strong>Sharper search results:</strong> <a href="https://community.sap.com/t5/technology-blog-posts-by-sap/langchainjs-x-sap-hana-cloud-improving-search-quality-with-cross-encoding/ba-p/14415219">Cross-Encoding Reranking</a>, the secret behind great RAG quality.</li>
+  <li><strong>Production-grade speed:</strong> <a href="https://community.sap.com/t5/technology-blog-posts-by-sap/performance-optimization-with-langchain-js-and-sap-hana-cloud/ba-p/14415223">Performance Optimization</a> with Map Merge, HNSW indexes, and specific metadata columns.</li>
+</ul>
+
+<p><strong>Get the code:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud" target="_blank" rel="noopener">SAP/langchainjs-integration-for-sap-hana-cloud</a> &nbsp;|&nbsp; <strong>Read the full guide:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/knowledge-graph-engine.md" target="_blank" rel="noopener">knowledge-graph-engine.md</a></p>
