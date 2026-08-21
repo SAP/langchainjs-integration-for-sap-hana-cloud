@@ -11,7 +11,11 @@ export default defineConfig((env) => {
       hideSkippedTests: true,
       testTimeout: 30_000,
       maxWorkers: 0.5,
-      exclude: ["**/*.int.test.ts", "**/*.eval.test.ts", ...configDefaults.exclude],
+      exclude: [
+        "**/*.int.test.ts",
+        "**/*.eval.test.ts",
+        ...configDefaults.exclude,
+      ],
       setupFiles: ["dotenv/config"],
     },
   };

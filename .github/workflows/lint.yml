@@ -27,20 +27,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint src
+      - name: Lint repo
         run: pnpm lint
 
-      - name: Check formatting (src)
+      - name: Check formatting
         run: pnpm format:check
-
-      - name: Lint tests
-        run: pnpm lint:tests
-
-      - name: Check formatting (tests)
-        run: pnpm format:tests:check
-
-      - name: Lint examples
-        run: pnpm lint:examples
-
-      - name: Check formatting (examples)
-        run: pnpm format:examples:check

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json.schemastore.org/prettierrc",
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "printWidth": 80,
   "tabWidth": 2,
   "useTabs": false,
@@ -10,10 +10,10 @@
   "trailingComma": "es5",
   "bracketSpacing": true,
   "arrowParens": "always",
-  "requirePragma": false,
-  "insertPragma": false,
   "proseWrap": "preserve",
   "htmlWhitespaceSensitivity": "css",
   "vueIndentScriptAndStyle": false,
-  "endOfLine": "lf"
+  "endOfLine": "lf",
+  "sortPackageJson": false,
+  "ignorePatterns": []
 }

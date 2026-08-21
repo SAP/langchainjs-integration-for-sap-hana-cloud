@@ -19,13 +19,13 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Run pre-release dependency check
         run: node .github/scripts/checkPrereleaseDependencies.js
-        
+
   run-tests:
-    needs: 
+    needs:
       - check-prerelease-dependencies
 
     uses: ./.github/workflows/ci.yml
@@ -38,7 +38,7 @@ jobs:
       tgz_file: ${{ steps.pack_package.outputs.tgz_file }}
 
     needs:
-    - run-tests
+      - run-tests
 
     steps:
       - name: Checkout repository
@@ -47,17 +47,17 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install pnpm
         run: npm install -g pnpm
-      
+
       - name: Install dependencies
         run: pnpm install
 
       - name: Build project
         run: pnpm build
-      
+
       - name: Pack package
         id: pack_package
         run: |
@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: dist
-          path : ./dist
+          path: ./dist
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v7
@@ -82,17 +82,16 @@ jobs:
           path: ./${{ steps.pack_package.outputs.tgz_file }}
 
   publish:
-
     runs-on: ubuntu-latest
 
-    needs: 
+    needs:
       - build
-    
+
     permissions:
       contents: read
       # id-token: write is required for the automatic generation of provenance statements and trusted publisher releasing
       id-token: write
-    
+
     environment: npmjs:@sap/hana-langchain
 
     steps:
@@ -102,18 +101,18 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: "20"
           registry-url: "https://registry.npmjs.org"
-      
+
       - name: Install latest npm cli
         run: npm install -g npm@^11.5.1
 
-      - name : Download built package artifact
+      - name: Download built package artifact
         uses: actions/download-artifact@v8
         with:
           name: dist
-          path : ./dist
-      
+          path: ./dist
+
       # --provenance enables the automatic generation of provenance statements (when using trusted publisher, this is automatically enabled and therefore optional)
       # npm version >=11.5.1 required for trusted publisher
       - name: Publish package
@@ -122,7 +121,7 @@ jobs:
   mark-release:
     runs-on: ubuntu-latest
 
-    needs: 
+    needs:
       - publish
       - build
 
@@ -144,11 +143,11 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-      
+
       - name: Download package artifact
         uses: actions/download-artifact@v8
         with:
-          name: package  
+          name: package
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
@@ -157,5 +156,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           generateReleaseNotes: true
-          tag: 'v${{ steps.get_version.outputs.version }}'
+          tag: "v${{ steps.get_version.outputs.version }}"
           commit: ${{ github.sha }}

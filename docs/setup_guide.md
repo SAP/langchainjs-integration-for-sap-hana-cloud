@@ -20,9 +20,9 @@ To work on the package as a developer, you will need the following tools:
    - This project uses pnpm as the dependency manager.
    - To install it globally run:
 
-       ```bash
-       npm install -g pnpm
-       ```
+     ```bash
+     npm install -g pnpm
+     ```
 
 3. **ESLint**
    - ESLint is used for enforcing standard linting rules.
@@ -39,9 +39,9 @@ To set up the development environment, follow these steps:
 1. Clone the repository and then cd into it
 2. Run the following command to install all necessary dependencies:
 
-    ```bash
-    pnpm install
-    ```
+   ```bash
+   pnpm install
+   ```
 
 3. You are now ready to work on the package!
 
@@ -49,7 +49,7 @@ To set up the development environment, follow these steps:
 
 - **Running Tests**
   - To run unit tests, run
-  
+
     ```bash
     pnpm test
     ```
