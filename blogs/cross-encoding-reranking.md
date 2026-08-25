@@ -409,6 +409,6 @@ const response = await llm.invoke(`Context:\n${context}\n\nQuestion: ${userQuest
 ## Related Resources
 
 - [Vector Engine Guide](./blog-post.md) — Vector search, embeddings, and filtering
-<!-- - [Knowledge Graph Guide](./knowledge-graph-engine.md) — RDF data and SPARQL Q&A -->
+- [Knowledge Graph Guide](./knowledge-graph-engine.md) — RDF data and SPARQL Q&A
 - [Performance Optimization Guide](./performance-optimization.md) — HNSW indexes and Map Merge
 - [GitHub Repository](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud)
