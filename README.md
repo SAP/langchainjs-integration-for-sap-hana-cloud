@@ -88,7 +88,7 @@ A `HanaSparqlQAAgent` can generate and execute SPARQL queries iteratively over `
 See a [usage example](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/examples/agents/sparqlQaAgent.ts).
 
 ```javascript
-import { HanaSparqlQAAgent } from "@sap/hana-langchain"
+import { HanaSparqlQAAgent } from "@sap/hana-langchain";
 ```
 
 ## Documentation
