@@ -78,6 +78,16 @@ See a [usage example](https://github.com/SAP/langchainjs-integration-for-sap-han
 import { HanaSparqlQAChain } from "@sap/hana-langchain"
 ```
 
+## Agents
+
+A `HanaSparqlQAAgent` can generate and execute SPARQL queries iteratively over `HanaRdfGraph`, including ontology retrieval and self-correction.
+
+See a [usage example](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/examples/agents/sparqlQaAgent.ts).
+
+```javascript
+import { HanaSparqlQAAgent } from "@sap/hana-langchain"
+```
+
 ## Documentation
 
 <!-- MIGRATE DOCUMENTATION TO LANGCHAIN DOCS -->
