@@ -278,9 +278,9 @@ export class HanaRdfGraph {
       "FROM <http://example.org/dummy_graph>"
     );
     const parsedQuery = parser.parse(queryWithDummyUri);
-    if (!(
-      parsedQuery.type === "query" && parsedQuery.subType === "construct"
-    )) {
+    if (
+      !(parsedQuery.type === "query" && parsedQuery.subType === "construct")
+    ) {
       throw new Error("Only CONSTRUCT queries are supported.");
     }
   }

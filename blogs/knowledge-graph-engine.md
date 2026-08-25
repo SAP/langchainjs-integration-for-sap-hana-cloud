@@ -99,7 +99,7 @@ const autoGraph = new HanaRdfGraph({
 const remoteGraph = new HanaRdfGraph({
   connection: client,
   graphUri: "http://company.example.com/products",
-  ontologyUri: "http://company.example.com/ontology",  // Graph containing schema definitions
+  ontologyUri: "http://company.example.com/ontology", // Graph containing schema definitions
 });
 
 // Option 3: Load from a local Turtle file
@@ -193,15 +193,18 @@ await new Promise<void>((resolve, reject) => {
 
 // Read and parse the triples file (TSV format: subject\tpredicate\tobject)
 const data = await readFile("./datasets/nation/triples.txt", "utf-8");
-const triples = data.trim().split("\n").map(line => {
-  const [subject, predicate, object] = line.split("\t");
-  return { subject, predicate, object };
-});
+const triples = data
+  .trim()
+  .split("\n")
+  .map((line) => {
+    const [subject, predicate, object] = line.split("\t");
+    return { subject, predicate, object };
+  });
 
 // Build SPARQL INSERT query
-const insertStatements = triples.map(t => 
-  `<${t.subject}> <${t.predicate}> <${t.object}> .`
-).join("\n");
+const insertStatements = triples
+  .map((t) => `<${t.subject}> <${t.predicate}> <${t.object}> .`)
+  .join("\n");
 
 const sparqlInsert = `
   INSERT DATA {
@@ -241,7 +244,11 @@ const graph = new HanaRdfGraph({
   graphUri: "Nations",
   autoExtractOntology: true,
 });
-await graph.initialize({ connection: client, graphUri: "Nations", autoExtractOntology: true });
+await graph.initialize({
+  connection: client,
+  graphUri: "Nations",
+  autoExtractOntology: true,
+});
 
 // Find all countries that have treaties with the USA
 const usaTreaties = await graph.query(`
@@ -381,14 +388,27 @@ const prodGraph = new HanaRdfGraph({
 For the best of both worlds, combine knowledge graph queries with vector search:
 
 ```typescript
-import { HanaDB, HanaInternalEmbeddings, HanaRdfGraph } from "@sap/hana-langchain";
+import {
+  HanaDB,
+  HanaInternalEmbeddings,
+  HanaRdfGraph,
+} from "@sap/hana-langchain";
 
 // Vector search for semantic similarity
-const vectorStore = new HanaDB(embeddings, { connection: client, tableName: "DOCUMENTS" });
-const semanticResults = await vectorStore.similaritySearch("customer complaints about delivery", 5);
+const vectorStore = new HanaDB(embeddings, {
+  connection: client,
+  tableName: "DOCUMENTS",
+});
+const semanticResults = await vectorStore.similaritySearch(
+  "customer complaints about delivery",
+  5
+);
 
 // Knowledge graph for structured queries
-const graph = new HanaRdfGraph({ connection: client, graphUri: "customer-data" });
+const graph = new HanaRdfGraph({
+  connection: client,
+  graphUri: "customer-data",
+});
 const structuredResults = await graph.query(`
   SELECT ?customer ?orderCount WHERE {
     ?customer a :Customer ;
@@ -412,4 +432,4 @@ const structuredResults = await graph.query(`
 
 ---
 
-*Ready to build knowledge graph applications? Check out the [examples](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/tree/main/examples/graphs) to see these features in action!*
+_Ready to build knowledge graph applications? Check out the [examples](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/tree/main/examples/graphs) to see these features in action!_

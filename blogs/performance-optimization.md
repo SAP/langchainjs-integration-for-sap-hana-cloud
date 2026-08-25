@@ -38,7 +38,6 @@ To demonstrate the performance difference, we use a dataset of **25,400 arXiv re
 
 > **Note:** All measurements in this guide were taken on a server machine with 48 cores. Absolute numbers will vary with your hardware, SAP HANA Cloud configuration, network latency, and document size; treat them as relative comparisons rather than fixed figures.
 
-
 ```typescript
 import { HanaDB, HanaInternalEmbeddings } from "@sap/hana-langchain";
 import { Document } from "@langchain/core/documents";
@@ -48,8 +47,8 @@ import { readFile } from "node:fs/promises";
 // Load research papers (25,400 documents)
 const raw = await readFile("arxiv_abstracts.json", "utf-8");
 const entries = JSON.parse(raw);
-const documents = entries.map((e: any) => 
-  new Document({ pageContent: e.pageContent, metadata: e.metadata })
+const documents = entries.map(
+  (e: any) => new Document({ pageContent: e.pageContent, metadata: e.metadata })
 );
 console.log(`Loaded ${documents.length} research papers`);
 
@@ -107,13 +106,13 @@ Speedup:   8.7x faster with Map Merge
 
 ### Performance Comparison
 
-| Method | 25,400 Documents | Throughput | 
-| ------ | ---------------- | ---------- |
-| Standard Insert | ~51 minutes | ~8 docs/s |
-| Map Merge | ~6 minutes | ~72 docs/s |
-| **Speedup** | **8.7x faster** | |
+| Method          | 25,400 Documents | Throughput |
+| --------------- | ---------------- | ---------- |
+| Standard Insert | ~51 minutes      | ~8 docs/s  |
+| Map Merge       | ~6 minutes       | ~72 docs/s |
+| **Speedup**     | **8.7x faster**  |            |
 
-*Results from arXiv research paper dataset (average abstract ~1KB). Results vary based on document size, network latency, and SAP HANA configuration.*
+_Results from arXiv research paper dataset (average abstract ~1KB). Results vary based on document size, network latency, and SAP HANA configuration._
 
 ---
 
@@ -131,12 +130,12 @@ HNSW creates a multi-layer graph structure where:
 
 **When to Use:**
 
-| Dataset Size | Recommendation |
-| ------------ | -------------- |
-| < 10K docs | HNSW optional |
+| Dataset Size    | Recommendation                       |
+| --------------- | ------------------------------------ |
+| < 10K docs      | HNSW optional                        |
 | 10K - 100K docs | Consider HNSW for sub-second queries |
-| > 100K docs | Strongly recommended |
-| > 1M docs | Essential for usable latency |
+| > 100K docs     | Strongly recommended                 |
+| > 1M docs       | Essential for usable latency         |
 
 ### Basic Usage
 
@@ -160,20 +159,20 @@ For specific performance requirements, you can customize the index:
 
 ```typescript
 await vectorStore.createHnswIndex({
-  indexName: "my_custom_index",    // Optional custom name
-  m: 64,                           // Max neighbors per node (4-1000)
-  efConstruction: 200,             // Build-time accuracy
-  efSearch: 400,                   // Query-time accuracy
+  indexName: "my_custom_index", // Optional custom name
+  m: 64, // Max neighbors per node (4-1000)
+  efConstruction: 200, // Build-time accuracy
+  efSearch: 400, // Query-time accuracy
 });
 ```
 
 **Parameter Guidelines:**
 
-| Parameter | Low Value | High Value | Trade-off |
-| --------- | --------- | ---------- | --------- |
-| `m` | 16 | 128 | Memory vs. search quality |
-| `efConstruction` | 64 | 500 | Index build time vs. quality |
-| `efSearch` | 100 | 1000 | Query latency vs. recall |
+| Parameter        | Low Value | High Value | Trade-off                    |
+| ---------------- | --------- | ---------- | ---------------------------- |
+| `m`              | 16        | 128        | Memory vs. search quality    |
+| `efConstruction` | 64        | 500        | Index build time vs. quality |
+| `efSearch`       | 100       | 1000       | Query latency vs. recall     |
 
 - **`m`**: Higher values improve recall but use more memory
 - **`efConstruction`**: Higher values build a better quality index but take longer
@@ -221,14 +220,14 @@ Search with HNSW: 105ms
 
 ### When HNSW Provides Benefits
 
-| Dataset Size | Exact Search | HNSW Search | Recommendation |
-| ------------ | ------------ | ----------- | -------------- |
-| 25K docs | ~72ms | ~105ms | Use exact search |
-| 100K docs | ~183ms | ~140ms | HNSW recommended |
-| 500K docs | ~991ms | ~166ms | HNSW essential |
-| 1M+ docs | ~2s+ | ~200ms | HNSW required |
+| Dataset Size | Exact Search | HNSW Search | Recommendation   |
+| ------------ | ------------ | ----------- | ---------------- |
+| 25K docs     | ~72ms        | ~105ms      | Use exact search |
+| 100K docs    | ~183ms       | ~140ms      | HNSW recommended |
+| 500K docs    | ~991ms       | ~166ms      | HNSW essential   |
+| 1M+ docs     | ~2s+         | ~200ms      | HNSW required    |
 
-*HNSW search time remains relatively stable (~100-200ms) regardless of dataset size, while exact search scales linearly.*
+_HNSW search time remains relatively stable (~100-200ms) regardless of dataset size, while exact search scales linearly._
 
 ---
 
@@ -275,11 +274,10 @@ await vectorStore.initialize();
 await vectorStore.addDocuments(documents, { useMapMerge: true });
 
 // Filter queries now use native SQL columns instead of JSON parsing
-const results = await vectorStore.similaritySearch(
-  "machine learning",
-  5,
-  { category: "cs.AI", year: 2023 }
-);
+const results = await vectorStore.similaritySearch("machine learning", 5, {
+  category: "cs.AI",
+  year: 2023,
+});
 ```
 
 ### Real-World Benchmark: Research Paper Dataset
@@ -334,23 +332,23 @@ Speedup: 1.3x faster with specific columns
 
 ### Performance Comparison
 
-| Method | Search Time | Notes |
-| ------ | ----------- | ----- |
-| JSON Metadata | ~166ms | Parses JSON on every query |
-| Specific Columns | ~126ms | Uses native SQL column comparison |
-| **Speedup** | **1.3x** | |
+| Method           | Search Time | Notes                             |
+| ---------------- | ----------- | --------------------------------- |
+| JSON Metadata    | ~166ms      | Parses JSON on every query        |
+| Specific Columns | ~126ms      | Uses native SQL column comparison |
+| **Speedup**      | **1.3x**    |                                   |
 
-*Results from filtering 25,400 research papers by `primaryCategory`. SAP HANA's JSON parsing is efficient at this scale; benefits increase with larger datasets and more complex filter conditions.*
+_Results from filtering 25,400 research papers by `primaryCategory`. SAP HANA's JSON parsing is efficient at this scale; benefits increase with larger datasets and more complex filter conditions._
 
 ### When to Use Specific Metadata Columns
 
-| Scenario | Recommendation |
-| -------- | -------------- |
-| Filtering on 1-3 fields frequently | Use `specificMetadataColumns` |
-| Many different filter combinations | Keep JSON metadata |
-| Exact match filters (category, status) | Use specific columns |
-| Range queries (price, date) | Use specific columns |
-| Full-text search on metadata | Keep JSON metadata |
+| Scenario                               | Recommendation                |
+| -------------------------------------- | ----------------------------- |
+| Filtering on 1-3 fields frequently     | Use `specificMetadataColumns` |
+| Many different filter combinations     | Keep JSON metadata            |
+| Exact match filters (category, status) | Use specific columns          |
+| Range queries (price, date)            | Use specific columns          |
+| Full-text search on metadata           | Keep JSON metadata            |
 
 ---
 

@@ -34,12 +34,12 @@ Final Results (highly relevant)
 
 **Cross-encoders** process the query and document together, allowing the model to directly compare them token-by-token. This captures subtle relationships that bi-encoders miss.
 
-| Aspect | Bi-encoder (Vector Search) | Cross-encoder (Reranking) |
-| ------ | -------------------------- | ------------------------- |
-| Speed | Very fast (milliseconds) | Slower (requires per-pair scoring) |
-| Accuracy | Good | Excellent |
-| Scalability | Handles millions of docs | Best for <100 candidates |
-| Use case | Initial retrieval | Final ranking |
+| Aspect      | Bi-encoder (Vector Search) | Cross-encoder (Reranking)          |
+| ----------- | -------------------------- | ---------------------------------- |
+| Speed       | Very fast (milliseconds)   | Slower (requires per-pair scoring) |
+| Accuracy    | Good                       | Excellent                          |
+| Scalability | Handles millions of docs   | Best for <100 candidates           |
+| Use case    | Initial retrieval          | Final ranking                      |
 
 ---
 
@@ -143,27 +143,41 @@ await productStore.initialize();
 // Add products with detailed descriptions
 const products = [
   new Document({
-    pageContent: "AudioMax Pro 5 wireless headphones with industry-leading noise cancellation, 30-hour battery, and premium sound quality for audiophiles",
+    pageContent:
+      "AudioMax Pro 5 wireless headphones with industry-leading noise cancellation, 30-hour battery, and premium sound quality for audiophiles",
     metadata: { name: "AudioMax Pro 5", category: "headphones", price: 349.99 },
   }),
   new Document({
-    pageContent: "PocketBuds Pro 2 with adaptive transparency, personalized spatial audio, and wireless charging case",
+    pageContent:
+      "PocketBuds Pro 2 with adaptive transparency, personalized spatial audio, and wireless charging case",
     metadata: { name: "PocketBuds Pro 2", category: "earbuds", price: 249.99 },
   }),
   new Document({
-    pageContent: "QuietShield Ultra headphones with world-class noise cancellation and immersive spatial audio experience",
-    metadata: { name: "QuietShield Ultra", category: "headphones", price: 429.99 },
+    pageContent:
+      "QuietShield Ultra headphones with world-class noise cancellation and immersive spatial audio experience",
+    metadata: {
+      name: "QuietShield Ultra",
+      category: "headphones",
+      price: 429.99,
+    },
   }),
   new Document({
-    pageContent: "TuneCore 510 on-ear wireless headphones with pure bass sound and 40-hour battery life, budget-friendly option",
+    pageContent:
+      "TuneCore 510 on-ear wireless headphones with pure bass sound and 40-hour battery life, budget-friendly option",
     metadata: { name: "TuneCore 510", category: "headphones", price: 49.99 },
   }),
   new Document({
-    pageContent: "StudioRef HD 560 open-back audiophile headphones for critical listening and mixing, reference-grade sound",
-    metadata: { name: "StudioRef HD 560", category: "headphones", price: 199.99 },
+    pageContent:
+      "StudioRef HD 560 open-back audiophile headphones for critical listening and mixing, reference-grade sound",
+    metadata: {
+      name: "StudioRef HD 560",
+      category: "headphones",
+      price: 199.99,
+    },
   }),
   new Document({
-    pageContent: "AudioMax Buds 5 true wireless earbuds with exceptional noise canceling and high-resolution audio support",
+    pageContent:
+      "AudioMax Buds 5 true wireless earbuds with exceptional noise canceling and high-resolution audio support",
     metadata: { name: "AudioMax Buds 5", category: "earbuds", price: 299.99 },
   }),
 ];
@@ -175,7 +189,8 @@ const reranker = new HanaReranker(client, "SAP_CER.20250701");
 await reranker.initialize();
 
 // User searches for noise-canceling headphones for work
-const searchQuery = "best noise canceling headphones for office work and video calls";
+const searchQuery =
+  "best noise canceling headphones for office work and video calls";
 
 // Without reranking: Vector search results
 const vectorResults = await productStore.similaritySearch(searchQuery, 4);
@@ -198,9 +213,13 @@ Vector Search Results (may not be optimally ordered):
 const candidates = await productStore.similaritySearch(searchQuery, 6);
 const rerankedResults = await reranker.rerank(candidates, searchQuery, 4);
 
-console.log("\nReranked Results (optimized for 'office work and video calls'):");
+console.log(
+  "\nReranked Results (optimized for 'office work and video calls'):"
+);
 rerankedResults.forEach(([index, score, doc], i) => {
-  console.log(`  ${i + 1}. ${doc!.metadata.name} (relevance: ${score.toFixed(2)})`);
+  console.log(
+    `  ${i + 1}. ${doc!.metadata.name} (relevance: ${score.toFixed(2)})`
+  );
 });
 ```
 
@@ -231,7 +250,7 @@ const rerankConfig: RerankConfigOptions = {
 // Single call that retrieves and reranks
 const results = await productStore.similaritySearch(
   "noise canceling headphones for travel",
-  6,         // Fetch 6 candidates
+  6, // Fetch 6 candidates
   undefined, // No metadata filter
   undefined, // No callbacks
   rerankConfig
@@ -314,7 +333,10 @@ This is especially useful when:
 
 ```typescript
 // Get candidates from vector search
-const candidates = await productStore.similaritySearch("best headphones for music", 4);
+const candidates = await productStore.similaritySearch(
+  "best headphones for music",
+  4
+);
 
 // Use reranker as a document compressor
 const compressedDocs = await reranker.compressDocuments(
@@ -368,11 +390,11 @@ const results = await vectorStore.similaritySearch(query, 5);
 
 Cross-encoding is more expensive than vector search. Choose your candidate set size based on your latency requirements (timings measured with `topN: 5`):
 
-| Candidates | Rerank Time | Use Case |
-| ---------- | ----------- | -------- |
-| 10-20 | ~150-200ms | Real-time search |
-| 30-50 | ~200-300ms | Quality-focused search |
-| 100+ | ~350-500ms | Batch processing |
+| Candidates | Rerank Time | Use Case               |
+| ---------- | ----------- | ---------------------- |
+| 10-20      | ~150-200ms  | Real-time search       |
+| 30-50      | ~200-300ms  | Quality-focused search |
+| 100+       | ~350-500ms  | Batch processing       |
 
 ### 3. Combine with Metadata Filtering
 
@@ -401,7 +423,9 @@ const topContext = await reranker.rerank(candidates, userQuestion, 3);
 const context = topContext.map(([, , doc]) => doc!.pageContent).join("\n\n");
 
 // Feed to LLM with high-quality, relevant context
-const response = await llm.invoke(`Context:\n${context}\n\nQuestion: ${userQuestion}`);
+const response = await llm.invoke(
+  `Context:\n${context}\n\nQuestion: ${userQuestion}`
+);
 ```
 
 ---

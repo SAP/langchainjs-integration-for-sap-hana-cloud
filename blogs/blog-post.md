@@ -36,7 +36,11 @@ The `HanaDB` class provides a full-featured vector store implementation backed b
 ### Basic Usage
 
 ```typescript
-import { HanaDB, HanaDBArgs, HanaInternalEmbeddings } from "@sap/hana-langchain";
+import {
+  HanaDB,
+  HanaDBArgs,
+  HanaInternalEmbeddings,
+} from "@sap/hana-langchain";
 import { Document } from "@langchain/core/documents";
 import hanaClient from "@sap/hana-client";
 
@@ -72,12 +76,14 @@ await vectorStore.initialize();
 // Add product documents with rich metadata
 const products = [
   new Document({
-    pageContent: "Wireless noise-canceling headphones with 30-hour battery life",
+    pageContent:
+      "Wireless noise-canceling headphones with 30-hour battery life",
     metadata: { category: "electronics", price: 299.99, in_stock: true },
   }),
   new Document({
-    pageContent: "Ergonomic office chair with lumbar support and adjustable armrests",
-    metadata: { category: "furniture", price: 449.00, in_stock: true },
+    pageContent:
+      "Ergonomic office chair with lumbar support and adjustable armrests",
+    metadata: { category: "furniture", price: 449.0, in_stock: true },
   }),
   new Document({
     pageContent: "Professional espresso machine with built-in grinder",
@@ -170,10 +176,7 @@ console.log(affordableElectronics);
 ```typescript
 // Another example: featured OR highly-rated products
 const featuredFilter = {
-  $or: [
-    { featured: true },
-    { rating: { $gte: 4.5 } },
-  ],
+  $or: [{ featured: true }, { rating: { $gte: 4.5 } }],
 };
 ```
 
@@ -207,7 +210,8 @@ Let's see how the same query behaves with different distance metrics:
 // Products with varying similarity to audio equipment
 const products = [
   new Document({
-    pageContent: "Wireless noise-canceling headphones with premium sound quality",
+    pageContent:
+      "Wireless noise-canceling headphones with premium sound quality",
     metadata: { category: "electronics", price: 299.99 },
   }),
   new Document({
@@ -220,7 +224,7 @@ const products = [
   }),
   new Document({
     pageContent: "Ergonomic office chair with lumbar support",
-    metadata: { category: "furniture", price: 449.00 },
+    metadata: { category: "furniture", price: 449.0 },
   }),
 ];
 
@@ -233,7 +237,9 @@ const query = "high quality audio headphones";
 // COSINE: Returns similarity scores (higher = more similar)
 const cosineResults = await cosineStore.similaritySearchWithScore(query, 3);
 console.log("COSINE Distance Results:");
-cosineResults.forEach(([doc, score]) => console.log(`  [${score.toFixed(4)}] ${doc.pageContent}`));
+cosineResults.forEach(([doc, score]) =>
+  console.log(`  [${score.toFixed(4)}] ${doc.pageContent}`)
+);
 ```
 
 ```text
@@ -246,9 +252,14 @@ Cosine returns similarity scores (higher = more similar).
 
 ```typescript
 // EUCLIDEAN: Returns distances (lower = more similar)
-const euclideanResults = await euclideanStore.similaritySearchWithScore(query, 3);
+const euclideanResults = await euclideanStore.similaritySearchWithScore(
+  query,
+  3
+);
 console.log("EUCLIDEAN Distance Results:");
-euclideanResults.forEach(([doc, score]) => console.log(`  [${score.toFixed(4)}] ${doc.pageContent}`));
+euclideanResults.forEach(([doc, score]) =>
+  console.log(`  [${score.toFixed(4)}] ${doc.pageContent}`)
+);
 ```
 
 ```text
@@ -270,7 +281,7 @@ Euclidean returns distances (lower = more similar).
 
 Standard similarity search returns the top-k most similar documents. That's exactly what you want when the user has a narrow query. But there are spots in a product journey where pure similarity hurts the experience, and the most common one is the **"customers also viewed"** recommendations strip on a product detail page.
 
-Imagine a shopper is looking at a premium open-back studio headphone (`StudioRef HD 560`). The strip beneath should help them discover comparable options: another wireless premium pair, a different form factor, maybe a budget alternative. Plain similarity search will fill that strip with four near-identical premium over-ear headphones, because that's what's most similar to what they're already looking at. **MMR** picks results that are both relevant *and* different from each other, so the strip actually helps the shopper compare.
+Imagine a shopper is looking at a premium open-back studio headphone (`StudioRef HD 560`). The strip beneath should help them discover comparable options: another wireless premium pair, a different form factor, maybe a budget alternative. Plain similarity search will fill that strip with four near-identical premium over-ear headphones, because that's what's most similar to what they're already looking at. **MMR** picks results that are both relevant _and_ different from each other, so the strip actually helps the shopper compare.
 
 ```typescript
 // Set up a small mixed headphone catalogue for the "customers also viewed" demo.
@@ -280,22 +291,38 @@ const products = [
   new Document({
     pageContent:
       "StudioRef HD 560 open-back wired headphones for critical listening and mixing, reference-grade sound",
-    metadata: { name: "StudioRef HD 560", form: "over-ear-wired", price: 199.99 },
+    metadata: {
+      name: "StudioRef HD 560",
+      form: "over-ear-wired",
+      price: 199.99,
+    },
   }),
   new Document({
     pageContent:
       "AudioMax Pro 5 wireless over-ear noise-canceling headphones with 30-hour battery and premium sound quality",
-    metadata: { name: "AudioMax Pro 5", form: "over-ear-wireless", price: 349.99 },
+    metadata: {
+      name: "AudioMax Pro 5",
+      form: "over-ear-wireless",
+      price: 349.99,
+    },
   }),
   new Document({
     pageContent:
       "QuietShield Ultra premium over-ear headphones with world-class noise cancellation and immersive spatial audio",
-    metadata: { name: "QuietShield Ultra", form: "over-ear-wireless", price: 429.99 },
+    metadata: {
+      name: "QuietShield Ultra",
+      form: "over-ear-wireless",
+      price: 429.99,
+    },
   }),
   new Document({
     pageContent:
       "Premium wireless over-ear headphones with spatial audio, active noise cancellation, and studio-grade drivers",
-    metadata: { name: "AuroraSound Pro", form: "over-ear-wireless", price: 379.99 },
+    metadata: {
+      name: "AuroraSound Pro",
+      form: "over-ear-wireless",
+      price: 379.99,
+    },
   }),
   new Document({
     pageContent:
@@ -310,7 +337,11 @@ const products = [
   new Document({
     pageContent:
       "Wired in-ear monitor earphones with dual-driver design for stage and studio use",
-    metadata: { name: "StageMonitor IE-200", form: "wired-in-ear", price: 129.99 },
+    metadata: {
+      name: "StageMonitor IE-200",
+      form: "wired-in-ear",
+      price: 129.99,
+    },
   }),
   new Document({
     pageContent:
@@ -327,7 +358,11 @@ const query = "premium wireless over-ear headphones";
 // Plain similarity search: top-4 candidates ordered by closeness alone
 const similar = await vectorStore.similaritySearch(query, 4);
 console.log("similaritySearch top 4:");
-similar.forEach((doc, i) => console.log(`  ${i + 1}. ${doc.metadata.name} (${doc.metadata.form}, $${doc.metadata.price})`));
+similar.forEach((doc, i) =>
+  console.log(
+    `  ${i + 1}. ${doc.metadata.name} (${doc.metadata.form}, $${doc.metadata.price})`
+  )
+);
 ```
 
 ```text
@@ -344,12 +379,16 @@ Three of the four are premium over-ear wireless headphones, almost interchangeab
 // MMR: same query, but pick 4 from a wider candidate pool while penalising
 // redundancy. lambda=0.5 balances relevance and diversity evenly.
 const recommendations = await vectorStore.maxMarginalRelevanceSearch(query, {
-  k: 4,        // Return 4 recommendations
-  fetchK: 12,  // Consider 12 candidates
+  k: 4, // Return 4 recommendations
+  fetchK: 12, // Consider 12 candidates
   lambda: 0.5, // Balance relevance and diversity
 });
 console.log("maxMarginalRelevanceSearch top 4:");
-recommendations.forEach((doc, i) => console.log(`  ${i + 1}. ${doc.metadata.name} (${doc.metadata.form}, $${doc.metadata.price})`));
+recommendations.forEach((doc, i) =>
+  console.log(
+    `  ${i + 1}. ${doc.metadata.name} (${doc.metadata.form}, $${doc.metadata.price})`
+  )
+);
 ```
 
 ```text
@@ -368,7 +407,7 @@ The top match is still the most relevant premium over-ear pair, but the next thr
 - **RAG context selection**: feed the LLM passages that cover multiple sub-topics of the question, not five rewordings of the same paragraph.
 - **"Related articles" or "Discover" modules**: where coverage matters more than the single closest match.
 
-Use `similaritySearch` when the goal is the closest match. Use `maxMarginalRelevanceSearch` when the goal is *coverage*.
+Use `similaritySearch` when the goal is the closest match. Use `maxMarginalRelevanceSearch` when the goal is _coverage_.
 
 ---
 
@@ -413,19 +452,27 @@ await vectorStore.initialize();
 // Add product data
 const products = [
   new Document({
-    pageContent: "Wireless noise-canceling headphones with 30-hour battery life and premium sound",
-    metadata: { name: "AudioMax Pro 5", category: "electronics", price: 349.99 },
+    pageContent:
+      "Wireless noise-canceling headphones with 30-hour battery life and premium sound",
+    metadata: {
+      name: "AudioMax Pro 5",
+      category: "electronics",
+      price: 349.99,
+    },
   }),
   new Document({
-    pageContent: "Ergonomic office chair with lumbar support and adjustable armrests",
-    metadata: { name: "ErgoChair Pro", category: "furniture", price: 449.00 },
+    pageContent:
+      "Ergonomic office chair with lumbar support and adjustable armrests",
+    metadata: { name: "ErgoChair Pro", category: "furniture", price: 449.0 },
   }),
   new Document({
-    pageContent: "Mechanical keyboard with customizable RGB lighting and Cherry MX switches",
+    pageContent:
+      "Mechanical keyboard with customizable RGB lighting and Cherry MX switches",
     metadata: { name: "TypePro K2", category: "electronics", price: 89.99 },
   }),
   new Document({
-    pageContent: "Ultra-wide curved monitor for productivity with USB-C connectivity",
+    pageContent:
+      "Ultra-wide curved monitor for productivity with USB-C connectivity",
     metadata: { name: "WideView 34", category: "electronics", price: 599.99 },
   }),
 ];
@@ -471,7 +518,11 @@ console.log(results);
 Vector search is fast but not always precise. **Cross-encoding reranking** applies a more sophisticated model to re-score initial search results, dramatically improving relevance. You can integrate reranking directly into similarity search:
 
 ```typescript
-import { HanaDB, HanaInternalEmbeddings, RerankConfigOptions } from "@sap/hana-langchain";
+import {
+  HanaDB,
+  HanaInternalEmbeddings,
+  RerankConfigOptions,
+} from "@sap/hana-langchain";
 import { Document } from "@langchain/core/documents";
 import hanaClient from "@sap/hana-client";
 
@@ -489,15 +540,22 @@ await vectorStore.initialize();
 // Add products
 const products = [
   new Document({
-    pageContent: "Wireless noise-canceling headphones with 30-hour battery life and premium sound",
-    metadata: { name: "AudioMax Pro 5", category: "electronics", price: 349.99 },
+    pageContent:
+      "Wireless noise-canceling headphones with 30-hour battery life and premium sound",
+    metadata: {
+      name: "AudioMax Pro 5",
+      category: "electronics",
+      price: 349.99,
+    },
   }),
   new Document({
-    pageContent: "Ergonomic office chair with lumbar support and adjustable armrests",
-    metadata: { name: "ErgoChair Pro", category: "furniture", price: 449.00 },
+    pageContent:
+      "Ergonomic office chair with lumbar support and adjustable armrests",
+    metadata: { name: "ErgoChair Pro", category: "furniture", price: 449.0 },
   }),
   new Document({
-    pageContent: "Standing desk converter with adjustable height and spacious work surface",
+    pageContent:
+      "Standing desk converter with adjustable height and spacious work surface",
     metadata: { name: "DeskFlex M2", category: "furniture", price: 299.99 },
   }),
   new Document({
@@ -516,7 +574,7 @@ const rerankConfig: RerankConfigOptions = {
 // Single call: vector search + cross-encoder reranking
 const results = await vectorStore.similaritySearch(
   "comfortable work from home setup for long hours",
-  6,         // Fetch 6 candidates internally
+  6, // Fetch 6 candidates internally
   undefined, // No metadata filter
   undefined, // No callbacks
   rerankConfig
@@ -573,10 +631,18 @@ await new Promise<void>((resolve, reject) => {
 // Define your product catalog metadata schema
 const attributeInfo = [
   new AttributeInfo("brand", "The product brand name", "string"),
-  new AttributeInfo("category", "Product category (electronics, clothing, home)", "string"),
+  new AttributeInfo(
+    "category",
+    "Product category (electronics, clothing, home)",
+    "string"
+  ),
   new AttributeInfo("price", "Price in USD", "number"),
   new AttributeInfo("rating", "Customer rating from 1-5", "number"),
-  new AttributeInfo("in_stock", "Whether the product is currently available", "boolean"),
+  new AttributeInfo(
+    "in_stock",
+    "Whether the product is currently available",
+    "boolean"
+  ),
 ];
 
 // Use SAP HANA's built-in embeddings for the vector store
@@ -594,15 +660,33 @@ await vectorStore.initialize();
 const products = [
   new Document({
     pageContent: "Premium wireless headphones with active noise cancellation",
-    metadata: { brand: "AudioMax", category: "electronics", price: 349.99, rating: 4.7, in_stock: true },
+    metadata: {
+      brand: "AudioMax",
+      category: "electronics",
+      price: 349.99,
+      rating: 4.7,
+      in_stock: true,
+    },
   }),
   new Document({
     pageContent: "Lightweight running shoes with responsive cushioning",
-    metadata: { brand: "TrailRunner", category: "clothing", price: 129.99, rating: 4.5, in_stock: true },
+    metadata: {
+      brand: "TrailRunner",
+      category: "clothing",
+      price: 129.99,
+      rating: 4.5,
+      in_stock: true,
+    },
   }),
   new Document({
     pageContent: "Smart home speaker with voice assistant integration",
-    metadata: { brand: "HomeVoice", category: "electronics", price: 99.99, rating: 4.3, in_stock: false },
+    metadata: {
+      brand: "HomeVoice",
+      category: "electronics",
+      price: 99.99,
+      rating: 4.3,
+      in_stock: false,
+    },
   }),
 ];
 await vectorStore.addDocuments(products);
@@ -629,9 +713,7 @@ const results2 = await retriever.invoke(
 );
 // Auto-generates: { $and: [{ in_stock: true }, { rating: { $gt: 4.5 } }] }
 
-const results3 = await retriever.invoke(
-  "TrailRunner or PaceMaker shoes"
-);
+const results3 = await retriever.invoke("TrailRunner or PaceMaker shoes");
 // Auto-generates: { $and: [{ category: "clothing" }, { $or: [{ brand: "TrailRunner" }, { brand: "PaceMaker" }] }] }
 ```
 
@@ -641,17 +723,17 @@ const results3 = await retriever.invoke(
 
 ### HanaDBArgs Reference
 
-| Property | Type | Default | Description |
-| -------- | ---- | ------- | ----------- |
-| `connection` | Connection | *required* | SAP HANA database connection |
-| `tableName` | string | "EMBEDDINGS" | Table name for storing vectors |
-| `contentColumn` | string | "VEC_TEXT" | Column for document content |
-| `metadataColumn` | string | "VEC_META" | Column for JSON metadata |
-| `vectorColumn` | string | "VEC_VECTOR" | Column for embeddings |
-| `vectorColumnLength` | number | -1 (dynamic) | Fixed vector dimensionality |
-| `vectorColumnType` | string | "REAL_VECTOR" | Vector type (REAL_VECTOR or HALF_VECTOR) |
-| `distanceStrategy` | string | "COSINE" | Distance metric (COSINE or EUCLIDEAN) |
-| `specificMetadataColumns` | string[] | undefined | Individual metadata columns for filtering |
+| Property                  | Type       | Default       | Description                               |
+| ------------------------- | ---------- | ------------- | ----------------------------------------- |
+| `connection`              | Connection | _required_    | SAP HANA database connection              |
+| `tableName`               | string     | "EMBEDDINGS"  | Table name for storing vectors            |
+| `contentColumn`           | string     | "VEC_TEXT"    | Column for document content               |
+| `metadataColumn`          | string     | "VEC_META"    | Column for JSON metadata                  |
+| `vectorColumn`            | string     | "VEC_VECTOR"  | Column for embeddings                     |
+| `vectorColumnLength`      | number     | -1 (dynamic)  | Fixed vector dimensionality               |
+| `vectorColumnType`        | string     | "REAL_VECTOR" | Vector type (REAL_VECTOR or HALF_VECTOR)  |
+| `distanceStrategy`        | string     | "COSINE"      | Distance metric (COSINE or EUCLIDEAN)     |
+| `specificMetadataColumns` | string[]   | undefined     | Individual metadata columns for filtering |
 
 ---
 
@@ -737,4 +819,4 @@ const args: HanaDBArgs = {
 
 ---
 
-*Ready to get started? Install the package and explore the [examples](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/tree/main/examples) to see these features in action!*
+_Ready to get started? Install the package and explore the [examples](https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/tree/main/examples) to see these features in action!_
