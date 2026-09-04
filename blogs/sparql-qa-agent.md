@@ -362,6 +362,7 @@ const agentConfig: HanaSparqlQAAgentOptions = {
 Override the default prompt to focus the agent on a specific domain:
 
 ```typescript
+import { SYSTEM_PROMPT } from "@sap/hana-langchain";
 const agentConfig: HanaSparqlQAAgentOptions = {
   graph,
   systemPrompt: `You are a Nobel Prize historian. When answering, always mention
