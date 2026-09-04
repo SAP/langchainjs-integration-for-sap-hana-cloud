@@ -31,7 +31,12 @@
 <blockquote>
   <p>
     <strong>Full walkthrough on GitHub:</strong>
-    <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/sparql-qa-agent.md" target="_blank" rel="noopener">blogs/sparql-qa-agent.md</a>. Complete code, setup instructions, and customization options.
+    <a
+      href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/sparql-qa-agent.md"
+      target="_blank"
+      rel="noopener"
+      >blogs/sparql-qa-agent.md</a
+    >. Complete code, setup instructions, and customization options.
   </p>
 </blockquote>
 
@@ -89,9 +94,11 @@ Natural language answer synthesized from results
 
 <p>
   The Nobel Prize Foundation publishes their full dataset as RDF Linked Data at
-  <a href="https://data.nobelprize.org" target="_blank" rel="noopener">data.nobelprize.org</a>, accessible through a public SPARQL endpoint. You can dump the entire graph
+  <a href="https://data.nobelprize.org" target="_blank" rel="noopener"
+    >data.nobelprize.org</a
+  >, accessible through a public SPARQL endpoint. You can dump the entire graph
   with one query &mdash; the endpoint returns CSV, so pass
-  <code>Accept: text/csv</code>:</p>
+  <code>Accept: text/csv</code>:
 </p>
 
 <pre><code class="language-bash">curl -G "https://data.nobelprize.org/store/sparql" \
@@ -340,10 +347,58 @@ The International Committee of the Red Cross has received three Nobel Peace Priz
 <h2>Where to take this next</h2>
 
 <ul>
-  <li><strong>Build the graph:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/knowledge-graph-engine.md" target="_blank" rel="noopener">Knowledge Graphs with SAP HANA Cloud and LangChain.js</a> &mdash; how to connect to the HANA triple store with <code>HanaRdfGraph</code> and run SPARQL queries directly.</li>
-  <li><strong>Start with vectors:</strong> <a href="https://community.sap.com/t5/technology-blog-posts-by-sap/building-vector-search-applications-with-sap-hana-cloud-and-langchain-js/ba-p/14413474">Vector Search with SAP HANA Cloud and LangChain.js</a> &mdash; the foundation post if you&rsquo;re new to <code>&#64;sap/hana-langchain</code>.</li>
-  <li><strong>Sharper results:</strong> <a href="https://community.sap.com/t5/technology-blog-posts-by-sap/sharper-search-results-cross-encoding-reranking-with-sap-hana-cloud-and/ba-p/14418982">Cross-Encoding Reranking</a> &mdash; how to improve relevance ranking for vector search using <code>HanaReranker</code>.</li>
-  <li><strong>Make it fast:</strong> <a href="https://community.sap.com/t5/technology-blog-posts-by-sap/performance-optimization-with-langchain-js-and-sap-hana-cloud/ba-p/14415223">Performance Optimization</a> &mdash; HNSW indexes and Map Merge for production-scale vector workloads.</li>
+  <li>
+    <strong>Build the graph:</strong>
+    <a
+      href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/knowledge-graph-engine.md"
+      target="_blank"
+      rel="noopener"
+      >Knowledge Graphs with SAP HANA Cloud and LangChain.js</a
+    >
+    &mdash; how to connect to the HANA triple store with
+    <code>HanaRdfGraph</code> and run SPARQL queries directly.
+  </li>
+  <li>
+    <strong>Start with vectors:</strong>
+    <a
+      href="https://community.sap.com/t5/technology-blog-posts-by-sap/building-vector-search-applications-with-sap-hana-cloud-and-langchain-js/ba-p/14413474"
+      >Vector Search with SAP HANA Cloud and LangChain.js</a
+    >
+    &mdash; the foundation post if you&rsquo;re new to
+    <code>&#64;sap/hana-langchain</code>.
+  </li>
+  <li>
+    <strong>Sharper results:</strong>
+    <a
+      href="https://community.sap.com/t5/technology-blog-posts-by-sap/sharper-search-results-cross-encoding-reranking-with-sap-hana-cloud-and/ba-p/14418982"
+      >Cross-Encoding Reranking</a
+    >
+    &mdash; how to improve relevance ranking for vector search using
+    <code>HanaReranker</code>.
+  </li>
+  <li>
+    <strong>Make it fast:</strong>
+    <a
+      href="https://community.sap.com/t5/technology-blog-posts-by-sap/performance-optimization-with-langchain-js-and-sap-hana-cloud/ba-p/14415223"
+      >Performance Optimization</a
+    >
+    &mdash; HNSW indexes and Map Merge for production-scale vector workloads.
+  </li>
 </ul>
 
-<p><strong>Get the code:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud" target="_blank" rel="noopener">SAP/langchainjs-integration-for-sap-hana-cloud</a> &nbsp;|&nbsp; <strong>Read the full guide:</strong> <a href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/sparql-qa-agent.md" target="_blank" rel="noopener">sparql-qa-agent.md</a></p>
+<p>
+  <strong>Get the code:</strong>
+  <a
+    href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud"
+    target="_blank"
+    rel="noopener"
+    >SAP/langchainjs-integration-for-sap-hana-cloud</a
+  >
+  &nbsp;|&nbsp; <strong>Read the full guide:</strong>
+  <a
+    href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/sparql-qa-agent.md"
+    target="_blank"
+    rel="noopener"
+    >sparql-qa-agent.md</a
+  >
+</p>
