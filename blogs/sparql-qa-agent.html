@@ -1,0 +1,404 @@
+<h1>
+  Natural Language Queries on Knowledge Graphs with SAP HANA Cloud and
+  LangChain.js
+</h1>
+
+<p>
+  Your knowledge graph contains exactly the answer. The problem is getting it
+  out.
+</p>
+
+<blockquote>
+  <p>
+    <em>&ldquo;Which scientists have won more than one Nobel Prize?&rdquo;</em>
+  </p>
+</blockquote>
+
+<p>
+  Answering that question by hand means knowing the exact class URIs, the
+  predicate names, the right prefixes, and where the graph lives. It means
+  writing SPARQL. Most developers don&rsquo;t want to do that for every question
+  a user might ask &mdash; and they shouldn&rsquo;t have to.
+</p>
+
+<p>
+  That&rsquo;s the problem <strong>HanaSparqlQAAgent</strong> solves. Give it a
+  plain English question. It reads the ontology, writes the SPARQL, runs it
+  against your SAP HANA Cloud triple store, and hands back a natural-language
+  answer. The query language stays invisible.
+</p>
+
+<blockquote>
+  <p>
+    <strong>Full walkthrough on GitHub:</strong>
+    <a
+      href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/sparql-qa-agent.md"
+      target="_blank"
+      rel="noopener"
+      >blogs/sparql-qa-agent.md</a
+    >. Complete code, setup instructions, and customization options.
+  </p>
+</blockquote>
+
+<h2>The two tools that make it work</h2>
+
+<p>
+  The agent doesn&rsquo;t guess. It reasons step by step using exactly two
+  built-in tools:
+</p>
+
+<pre><code class="language-text">User Question
+      │
+      ▼
+┌─────────────────────┐
+│  retrieveOntology   │  Returns the graph's OWL schema in Turtle format
+│  (tool call 1)      │  Agent learns available classes and properties
+└─────────────────────┘
+      │
+      ▼
+┌─────────────────────┐
+│  executeSparql      │  Runs the generated SELECT query against HANA
+│  (tool call 2)      │  Returns raw query results
+└─────────────────────┘
+      │
+      ▼
+Natural language answer synthesized from results
+</code></pre>
+
+<p>
+  <strong>Step one</strong> is always to retrieve the ontology. The agent
+  can&rsquo;t write correct SPARQL without knowing what class URIs and
+  predicates exist &mdash; so it asks first, rather than guessing. Against the
+  Nobel Prize graph, it learns about the <code>nobel:Laureate</code>,
+  <code>nobel:NobelPrize</code>, and <code>nobel:LaureateAward</code> classes,
+  along with properties like <code>foaf:name</code>, <code>nobel:year</code>,
+  <code>nobel:category</code>, and <code>dbo:birthPlace</code>.
+</p>
+
+<p>
+  <strong>Step two</strong> is execution. The agent writes a SELECT query
+  grounded strictly in the ontology it just read, and
+  <code>executeSparql</code> runs it. The tool automatically injects the correct
+  <code>FROM</code> clause so the query always targets the right named graph
+  &mdash; no manual plumbing required.
+</p>
+
+<p>
+  The built-in system prompt enforces a hard constraint: only SELECT queries. No
+  INSERT, UPDATE, or DELETE can be generated. The safest complement to that is
+  using a read-only database user, which the best-practices section covers
+  below.
+</p>
+
+<h2>Getting started in ten lines</h2>
+
+<p>
+  The Nobel Prize Foundation publishes their full dataset as RDF Linked Data at
+  <a href="https://data.nobelprize.org" target="_blank" rel="noopener"
+    >data.nobelprize.org</a
+  >, accessible through a public SPARQL endpoint. You can dump the entire graph
+  with one query &mdash; the endpoint returns CSV, so pass
+  <code>Accept: text/csv</code>:
+</p>
+
+<pre><code class="language-bash">curl -G "https://data.nobelprize.org/store/sparql" \
+  --data-urlencode "query=SELECT DISTINCT ?s ?p ?o WHERE { ?s ?p ?o }" \
+  -H "Accept: text/csv" \
+  -o nobel_prizes.csv
+</code></pre>
+
+<p>
+  <code>SELECT DISTINCT</code> is necessary because the platform stores each
+  triple in two named graphs &mdash; without it every triple appears twice.
+</p>
+
+<p>Before inserting into HANA, filter out two categories of triples:</p>
+
+<ul>
+  <li>
+    <strong>Blank nodes</strong> &mdash; triples whose subject or object is an
+    anonymous blank node (<code>_:b0</code>). Blank nodes have no stable URI and
+    cannot be matched in subsequent queries.
+  </li>
+  <li>
+    <strong>Invalid <code>xsd:date</code> literals</strong> &mdash; the dataset
+    uses partial dates like <code>"1956-00-00"^^xsd:date</code> for laureates
+    with unknown birth dates. HANA rejects month or day values of
+    <code>00</code>.
+  </li>
+</ul>
+
+<p>
+  Then insert the filtered triples into a named graph using
+  <code>INSERT DATA</code> via <code>SYS.SPARQL_EXECUTE</code>. For large
+  datasets, split the triples across multiple statements rather than sending
+  them all at once:
+</p>
+
+<pre><code class="language-typescript">await new Promise&lt;void&gt;((resolve, reject) =&gt; {
+  client.prepare("CALL SYS.SPARQL_EXECUTE(?, ?, ?, ?)", (err, stmt) =&gt; {
+    if (err) return reject(err);
+    stmt.exec(
+      { REQUEST: `INSERT DATA { GRAPH &lt;nobelprizes&gt; { ${triples} } }`, PARAMETER: "" },
+      (err2: Error) =&gt; (err2 ? reject(err2) : resolve())
+    );
+  });
+});
+</code></pre>
+
+<p>With the data in HANA, connect and initialize the graph:</p>
+
+<pre><code class="language-typescript">import hanaClient from "@sap/hana-client";
+import { AzureOpenAiChatClient } from "@sap-ai-sdk/langchain";
+import {
+  HanaRdfGraph,
+  HanaSparqlQAAgent,
+} from "@sap/hana-langchain";
+
+const client = hanaClient.createConnection({
+  host: process.env.HANA_DB_ADDRESS,
+  port: process.env.HANA_DB_PORT,
+  user: process.env.HANA_DB_USER,
+  password: process.env.HANA_DB_PASSWORD,
+});
+await new Promise&lt;void&gt;((resolve, reject) =&gt; {
+  client.connect((err: Error) =&gt; (err ? reject(err) : resolve()));
+});
+
+const graph = new HanaRdfGraph({
+  connection: client,
+  graphUri: "nobelprizes",
+  autoExtractOntology: true,
+});
+await graph.initialize({
+  connection: client,
+  graphUri: "nobelprizes",
+  autoExtractOntology: true,
+});
+
+const agent = HanaSparqlQAAgent.createAgent(
+  new AzureOpenAiChatClient({ modelName: "gpt-4o" }),
+  { graph }
+);
+
+const result = await agent.invoke({
+  messages: [{ role: "user", content: "Who won the Nobel Prize in Literature in 1947?" }],
+});
+console.log(result.messages.at(-1)?.content);
+</code></pre>
+
+<pre><code class="language-text">André Gide won the Nobel Prize in Literature in 1947, for his comprehensive
+and artistically significant writings, in which human problems and conditions
+have been presented with a fearless love of truth and keen psychological insight.
+</code></pre>
+
+<p>
+  <code>autoExtractOntology: true</code> runs a built-in CONSTRUCT query that
+  derives an OWL schema directly from your data. No separate ontology file
+  needed to get started. For large or complex graphs, you can supply a custom
+  CONSTRUCT query, a remote ontology URI, or a local RDF file instead &mdash;
+  the full options table is in the companion guide.
+</p>
+
+<blockquote>
+  <p>
+    <strong>Note:</strong> LLM outputs are non-deterministic &mdash; the exact
+    SPARQL generated and the phrasing of answers will vary between runs. More
+    capable models generally produce more accurate queries and more reliable
+    answers.
+  </p>
+</blockquote>
+
+<h2>What the agent can answer</h2>
+
+<p>
+  Simple lookups, multi-hop traversal, and aggregation queries all work out of
+  the box. Ask about a specific year:
+</p>
+
+<pre><code class="language-text">Q: Who won the Nobel Prize in Physics in 2018?
+
+The Nobel Prize in Physics 2018 was awarded to three scientists:
+- Arthur Ashkin (Bell Laboratories, USA)
+- Gérard Mourou (École Polytechnique, France / University of Michigan, USA)
+- Donna Strickland (University of Waterloo, Canada)
+</code></pre>
+
+<p>
+  Ask a biographical question that requires following relationships across nodes
+  &mdash; from laureate to birthplace to country:
+</p>
+
+<pre><code class="language-text">Q: In which city was Marie Curie born, and how many Nobel Prizes did she win?
+
+Marie Curie was born in Warsaw, Poland. She won two Nobel Prizes:
+the Nobel Prize in Physics in 1903 and the Nobel Prize in Chemistry in 1911,
+making her the first person to win Nobel Prizes in two different sciences.
+</code></pre>
+
+<p>Ask for aggregations that the agent turns into GROUP BY queries:</p>
+
+<pre><code class="language-text">Q: Which university has produced the most Nobel laureates?
+
+The University of California has produced the most Nobel laureates,
+with 42 laureates affiliated with the university.
+</code></pre>
+
+<p>
+  And when the data genuinely isn&rsquo;t there, the agent says so honestly
+  rather than hallucinating:
+</p>
+
+<pre><code class="language-text">Q: Who won the Nobel Prize in Artificial Intelligence?
+
+There is no Nobel Prize in Artificial Intelligence in the available data.
+The Nobel Prize categories are Physics, Chemistry, Physiology or Medicine,
+Literature, Peace, and Economic Sciences.
+</code></pre>
+
+<h2>Streaming for interactive apps</h2>
+
+<p>
+  For a UI that starts displaying results before the full answer is ready, swap
+  <code>invoke</code> for <code>stream</code>:
+</p>
+
+<pre><code class="language-typescript">for await (const [chunk] of await agent.stream(
+  { messages: [{ role: "user", content: "Which scientists have won more than one Nobel Prize?" }] },
+  { streamMode: "messages" }
+)) {
+  if (chunk.content) process.stdout.write(chunk.text);
+}
+</code></pre>
+
+<pre><code class="language-text">Several scientists have won more than one Nobel Prize:
+
+- Marie Curie — Physics (1903) and Chemistry (1911)
+- John Bardeen — Physics (1956) and Physics (1972)
+- Linus Pauling — Chemistry (1954) and Peace (1962)
+- Frederick Sanger — Chemistry (1958) and Chemistry (1980)
+- K. Barry Sharpless — Chemistry (2001) and Chemistry (2022)
+
+The International Committee of the Red Cross has received three Nobel Peace Prizes
+(1917, 1944, and 1963).
+</code></pre>
+
+<p>
+  The interface is identical to every other LangChain agent &mdash; if
+  you&rsquo;ve streamed a chat model before, you already know how this works.
+</p>
+
+<h2>Extending the agent</h2>
+
+<p>
+  The defaults cover the common case, but the agent is designed to be extended.
+  Three common patterns:
+</p>
+
+<p>
+  <strong>Extra tools.</strong> Pass additional tools in
+  <code>HanaSparqlQAAgentOptions.tools</code> and they sit alongside the
+  built-in pair. Useful for date lookups, external API calls, or domain-specific
+  calculations the LLM might need alongside graph results.
+</p>
+
+<p>
+  <strong>Custom system prompt.</strong> Override <code>systemPrompt</code> to
+  specialize the agent for a domain, add persona constraints, or restrict the
+  kinds of questions it will answer. The built-in prompt is still a useful
+  starting point to extend rather than replace entirely.
+</p>
+
+<p>
+  <strong>Full control.</strong> Set <code>includeDefaultTools: false</code> and
+  <code>includeDefaultMiddleware: false</code> to supply your own tool set and
+  retry logic from scratch &mdash; useful when you need a tightly controlled
+  production agent with custom rate-limiting or observability hooks.
+</p>
+
+<h2>The cheat sheet</h2>
+
+<ul>
+  <li>
+    <strong>Use read-only credentials.</strong> The prompt forbids write
+    queries, but a read-only database user is the defense-in-depth layer that
+    makes it impossible for a prompt injection to do damage.
+  </li>
+  <li>
+    <strong>Inspect the schema before deploying.</strong> Call
+    <code>graph.getSchema()</code> and serialize it to Turtle. If the ontology
+    looks sparse, switch from <code>autoExtractOntology</code> to a custom
+    <code>ontologyQuery</code> that covers the full structure.
+  </li>
+  <li>
+    <strong>Add <code>rdfs:label</code> to everything.</strong> The system
+    prompt instructs the agent to retrieve labels when they exist. Answers built
+    from human-readable names are far more useful than answers built from raw
+    URIs.
+  </li>
+  <li>
+    <strong>Custom CONSTRUCT for complex graphs.</strong>
+    <code>autoExtractOntology</code> does a best-effort schema inference from
+    the data. A hand-written CONSTRUCT query from a separate ontology graph
+    gives the agent a more precise and complete picture.
+  </li>
+</ul>
+
+<h2>Where to take this next</h2>
+
+<ul>
+  <li>
+    <strong>Build the graph:</strong>
+    <a
+      href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/knowledge-graph-engine.md"
+      target="_blank"
+      rel="noopener"
+      >Knowledge Graphs with SAP HANA Cloud and LangChain.js</a
+    >
+    &mdash; how to connect to the HANA triple store with
+    <code>HanaRdfGraph</code> and run SPARQL queries directly.
+  </li>
+  <li>
+    <strong>Start with vectors:</strong>
+    <a
+      href="https://community.sap.com/t5/technology-blog-posts-by-sap/building-vector-search-applications-with-sap-hana-cloud-and-langchain-js/ba-p/14413474"
+      >Vector Search with SAP HANA Cloud and LangChain.js</a
+    >
+    &mdash; the foundation post if you&rsquo;re new to
+    <code>&#64;sap/hana-langchain</code>.
+  </li>
+  <li>
+    <strong>Sharper results:</strong>
+    <a
+      href="https://community.sap.com/t5/technology-blog-posts-by-sap/sharper-search-results-cross-encoding-reranking-with-sap-hana-cloud-and/ba-p/14418982"
+      >Cross-Encoding Reranking</a
+    >
+    &mdash; how to improve relevance ranking for vector search using
+    <code>HanaReranker</code>.
+  </li>
+  <li>
+    <strong>Make it fast:</strong>
+    <a
+      href="https://community.sap.com/t5/technology-blog-posts-by-sap/performance-optimization-with-langchain-js-and-sap-hana-cloud/ba-p/14415223"
+      >Performance Optimization</a
+    >
+    &mdash; HNSW indexes and Map Merge for production-scale vector workloads.
+  </li>
+</ul>
+
+<p>
+  <strong>Get the code:</strong>
+  <a
+    href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud"
+    target="_blank"
+    rel="noopener"
+    >SAP/langchainjs-integration-for-sap-hana-cloud</a
+  >
+  &nbsp;|&nbsp; <strong>Read the full guide:</strong>
+  <a
+    href="https://github.com/SAP/langchainjs-integration-for-sap-hana-cloud/blob/main/blogs/sparql-qa-agent.md"
+    target="_blank"
+    rel="noopener"
+    >sparql-qa-agent.md</a
+  >
+</p>
