@@ -467,3 +467,51 @@ export async function validateDatatypeSupport(
   const instanceVersion = await getInstanceVersion(connection);
   throw new Error(datatypeSupportError(datatype, instanceVersion));
 }
+
+/**
+ * Build a HANA `VECTOR_EMBEDDING` expression (with placeholders) and its params.
+ *
+ * `kind` is `"QUERY"` or `"DOCUMENT"`. Returns the three-argument form
+ * `VECTOR_EMBEDDING(?, '<kind>', ?)` with params `[text, modelId]`, or the
+ * five-argument remote-source form `VECTOR_EMBEDDING(?, '<kind>', ?, ?, ?)` with
+ * params `[text, modelId, remoteSourceSchema, remoteSource]` when a remote source
+ * is configured. Shared by the vector store and the memory stores so in-database
+ * embedding is built one way.
+ */
+export function vectorEmbeddingSqlAndParams(
+  text: string,
+  kind: "QUERY" | "DOCUMENT",
+  modelId: string,
+  remoteSourceSchema = "",
+  remoteSource = ""
+): [string, string[]] {
+  if (kind !== "QUERY" && kind !== "DOCUMENT") {
+    throw new Error("kind must be either 'QUERY' or 'DOCUMENT'");
+  }
+  const params: string[] = [text, modelId];
+  if (!remoteSource) {
+    return [`VECTOR_EMBEDDING(?, '${kind}', ?)`, params];
+  }
+  params.push(remoteSourceSchema, remoteSource);
+  return [`VECTOR_EMBEDDING(?, '${kind}', ?, ?, ?)`, params];
+}
+
+/**
+ * Align a `VECTOR_EMBEDDING` expression with the stored column type.
+ *
+ * `VECTOR_EMBEDDING` always produces a `REAL_VECTOR`; when the column is a
+ * different type (e.g. `HALF_VECTOR`) the expression is wrapped in the matching
+ * `TO_<type>` conversion, otherwise it is returned unchanged.
+ */
+export function convertVectorEmbeddingToColumnType(
+  expr: string,
+  vectorColumnType: string
+): string {
+  if (!expr.toUpperCase().includes("VECTOR_EMBEDDING")) {
+    throw new Error(`Expected 'VECTOR_EMBEDDING' in '${expr}'`);
+  }
+  if (vectorColumnType !== "REAL_VECTOR") {
+    return toTargetVectorType(expr, vectorColumnType);
+  }
+  return expr;
+}

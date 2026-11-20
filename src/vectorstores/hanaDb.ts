@@ -9,6 +9,7 @@ import { Connection, HanaParameterType } from "@sap/hana-client";
 import { HanaInternalEmbeddings } from "../embeddings/hanaInternalEmbeddings.js";
 import {
   DistanceStrategy,
+  convertVectorEmbeddingToColumnType,
   executeBatchStatement,
   executeQuery,
   executeStatement,
@@ -21,6 +22,7 @@ import {
   validateK,
   validateKAndFetchK,
   validateVectorColumnType,
+  vectorEmbeddingSqlAndParams,
 } from "../hanautils.js";
 import { CreateWhereClause, Filter } from "./createWhereClause.js";
 import {
@@ -392,18 +394,13 @@ export class HanaDB extends VectorStore {
     text: string,
     type: "QUERY" | "DOCUMENT"
   ): [string, HanaParameterType[]] {
-    const vectorEmbeddingParms = [text, this.internalEmbeddingModelId];
-    let vectorEmbeddingSql;
-    if (!this.internalEmbeddingRemoteSource) {
-      vectorEmbeddingSql = `VECTOR_EMBEDDING(?, '${type}', ?)`;
-    } else {
-      vectorEmbeddingSql = `VECTOR_EMBEDDING(?, '${type}', ?, ?, ?)`;
-      vectorEmbeddingParms.push(
-        this.internalEmbeddingRemoteSourceSchema,
-        this.internalEmbeddingRemoteSource
-      );
-    }
-    return [vectorEmbeddingSql, vectorEmbeddingParms];
+    return vectorEmbeddingSqlAndParams(
+      text,
+      type,
+      this.internalEmbeddingModelId,
+      this.internalEmbeddingRemoteSourceSchema,
+      this.internalEmbeddingRemoteSource
+    );
   }
 
   /**
@@ -626,15 +623,7 @@ export class HanaDB extends VectorStore {
    *          otherwise the original expression.
    */
   private convertVectorEmbeddingToColumnType(expr: string): string {
-    if (!expr.toUpperCase().includes("VECTOR_EMBEDDING")) {
-      throw new Error(`Expected 'VECTOR_EMBEDDING' in '${expr}'`);
-    }
-
-    if (this.vectorColumnType !== "REAL_VECTOR") {
-      return this.convertToTargetVectorType(expr);
-    }
-
-    return expr;
+    return convertVectorEmbeddingToColumnType(expr, this.vectorColumnType);
   }
 
   /**

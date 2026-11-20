@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_VECTOR_COLUMN_TYPE,
   VECTOR_COLUMN_SQL_TYPES,
+  convertVectorEmbeddingToColumnType,
   datatypeSupportError,
   deserializeVector,
   getMinSupportedVersion,
@@ -10,6 +11,7 @@ import {
   toTargetVectorType,
   validateDatatypeSupport,
   validateVectorColumnType,
+  vectorEmbeddingSqlAndParams,
 } from "../../src/hanautils.js";
 
 // A minimal `@sap/hana-client` connection whose `exec` returns scripted rows based
@@ -132,5 +134,62 @@ describe("datatype support", () => {
     await expect(validateDatatypeSupport(conn, "HALF_VECTOR")).rejects.toThrow(
       /HALF_VECTOR[\s\S]*2024\.4[\s\S]*2025\.15/
     );
+  });
+});
+
+describe("vectorEmbeddingSqlAndParams", () => {
+  it("builds the three-argument form", () => {
+    const [sql, params] = vectorEmbeddingSqlAndParams(
+      "hello",
+      "QUERY",
+      "SAP_NEB.20240715"
+    );
+    expect(sql).toBe("VECTOR_EMBEDDING(?, 'QUERY', ?)");
+    expect(params).toEqual(["hello", "SAP_NEB.20240715"]);
+  });
+
+  it("builds the five-argument remote-source form", () => {
+    const [sql, params] = vectorEmbeddingSqlAndParams(
+      "doc",
+      "DOCUMENT",
+      "SAP_NEB.20240715",
+      "REMOTE",
+      "SRC"
+    );
+    expect(sql).toBe("VECTOR_EMBEDDING(?, 'DOCUMENT', ?, ?, ?)");
+    expect(params).toEqual(["doc", "SAP_NEB.20240715", "REMOTE", "SRC"]);
+  });
+
+  it("rejects a bad kind", () => {
+    expect(() =>
+      // @ts-expect-error intentionally passing an invalid kind
+      vectorEmbeddingSqlAndParams("x", "SENTENCE", "m")
+    ).toThrow(/QUERY.*DOCUMENT/);
+  });
+});
+
+describe("convertVectorEmbeddingToColumnType", () => {
+  it("passes REAL_VECTOR expressions through unchanged", () => {
+    expect(
+      convertVectorEmbeddingToColumnType(
+        "VECTOR_EMBEDDING(?, 'QUERY', ?)",
+        "REAL_VECTOR"
+      )
+    ).toBe("VECTOR_EMBEDDING(?, 'QUERY', ?)");
+  });
+
+  it("wraps for a non-REAL_VECTOR column", () => {
+    expect(
+      convertVectorEmbeddingToColumnType(
+        "VECTOR_EMBEDDING(?, 'QUERY', ?)",
+        "HALF_VECTOR"
+      )
+    ).toBe("TO_HALF_VECTOR(VECTOR_EMBEDDING(?, 'QUERY', ?))");
+  });
+
+  it("rejects an expression that is not a VECTOR_EMBEDDING", () => {
+    expect(() =>
+      convertVectorEmbeddingToColumnType("?", "HALF_VECTOR")
+    ).toThrow(/Expected 'VECTOR_EMBEDDING'/);
   });
 });

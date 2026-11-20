@@ -2,7 +2,7 @@
 import hanaClient, { Connection } from "@sap/hana-client";
 import { Embeddings } from "@langchain/core/embeddings";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
-import { HanaStore } from "../../src/index.js";
+import { HanaStore, HanaInternalEmbeddings } from "../../src/index.js";
 import { HanaTestUtils } from "./hana.test.utils.js";
 
 const createConnectionParams = () => ({
@@ -229,6 +229,35 @@ describe("HanaStore", () => {
       limit: 2,
     });
     expect(results[0].key).toBe("cat");
+    await store.delete(ns, "cat");
+    await store.delete(ns, "car");
+  });
+
+  test("semantic search with HANA internal embeddings", async () => {
+    const modelId = process.env.HANA_DB_EMBEDDING_MODEL_ID;
+    if (!modelId) return; // Skip unless an in-database embedding model is configured.
+    const store = new HanaStore({
+      connection: client,
+      schemaName,
+      index: {
+        dims: 768,
+        embeddings: new HanaInternalEmbeddings({
+          internalEmbeddingModelId: modelId,
+        }),
+        fields: ["text"],
+      },
+      vectorsTable: "LANGGRAPH_STORE_VECTORS_INTERNAL",
+    });
+    await store.setup();
+    const ns = ["seminternal"];
+    await store.put(ns, "cat", { text: "cats are great pets" });
+    await store.put(ns, "car", { text: "cars drive on roads" });
+    const results = await store.search(ns, {
+      query: "a cute kitten",
+      limit: 2,
+    });
+    expect(new Set(results.map((i) => i.key))).toEqual(new Set(["cat", "car"]));
+    expect(results[0].key).toBe("cat"); // most similar to a feline query
     await store.delete(ns, "cat");
     await store.delete(ns, "car");
   });
