@@ -20,16 +20,6 @@ function makeStore(overrides: Partial<HanaStoreArgs> = {}): HanaStore {
   return new HanaStore({ connection: mockConnection, ...overrides });
 }
 
-describe("serializeVector", () => {
-  it("lays out a REAL_VECTOR as uint32 count + 4-byte floats", () => {
-    const buf: Buffer = priv(makeStore()).serializeVector([1, 2]);
-    expect(buf.length).toBe(4 + 2 * 4);
-    expect(buf.readUInt32LE(0)).toBe(2);
-    expect(buf.readFloatLE(4)).toBeCloseTo(1);
-    expect(buf.readFloatLE(8)).toBeCloseTo(2);
-  });
-});
-
 describe("getSql", () => {
   it("has no expiry clause without TTL", () => {
     const sql = priv(makeStore()).getSql(2);
@@ -71,6 +61,26 @@ describe("vectorsDdl", () => {
   it("dimensions the REAL_VECTOR column by index.dims", () => {
     const store = makeStore({ index: { dims: 8, embeddings: stubEmbeddings } });
     expect(priv(store).vectorsDdl()).toContain('"EMBEDDING" REAL_VECTOR(8)');
+  });
+
+  it("uses HALF_VECTOR when configured", () => {
+    const store = makeStore({
+      index: { dims: 8, embeddings: stubEmbeddings },
+      vectorColumnType: "HALF_VECTOR",
+    });
+    expect(priv(store).vectorsDdl()).toContain('"EMBEDDING" HALF_VECTOR(8)');
+  });
+});
+
+describe("HALF_VECTOR search SQL", () => {
+  it("wraps the query embedding in TO_HALF_VECTOR", () => {
+    const store = makeStore({
+      index: { dims: 4, embeddings: stubEmbeddings },
+      vectorColumnType: "HALF_VECTOR",
+    });
+    const [sql] = priv(store).vectorSearchSql(["ns"]);
+    expect(sql).toContain("TO_HALF_VECTOR(?)");
+    expect(sql).not.toContain("TO_REAL_VECTOR");
   });
 });
 
