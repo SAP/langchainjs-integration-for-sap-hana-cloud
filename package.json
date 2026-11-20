@@ -34,12 +34,16 @@
   "peerDependencies": {
     "@langchain/classic": "^1.0.41",
     "@langchain/core": "^1.2.5",
+    "@langchain/langgraph-checkpoint": "^1.2.0",
     "langchain": "^1.5.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@langchain/core": "^1.2.5",
+    "@langchain/langgraph": "^1.4.9",
+    "@langchain/langgraph-checkpoint": "^1.2.0",
+    "@langchain/langgraph-checkpoint-validation": "^1.2.1",
     "@langchain/textsplitters": "^1.0.1",
     "@sap-ai-sdk/langchain": "^2.13.0",
     "@types/n3": "^1.26.1",
