@@ -5,3 +5,4 @@ export * from "./agents/index.js";
 export * from "./embeddings/index.js";
 export * from "./structured_query/index.js";
 export * from "./checkpointers/index.js";
+export * from "./memorystores/index.js";
