@@ -14,8 +14,13 @@ import {
   executeStatement,
   getTableRef,
   prepareQuery,
+  serializeVector,
+  deserializeVector,
+  toTargetVectorType,
+  validateDatatypeSupport,
   validateK,
   validateKAndFetchK,
+  validateVectorColumnType,
 } from "../hanautils.js";
 import { CreateWhereClause, Filter } from "./createWhereClause.js";
 import {
@@ -30,8 +35,6 @@ const HANA_DISTANCE_FUNCTION: Record<DistanceStrategy, [string, string]> = {
   COSINE: ["COSINE_SIMILARITY", "DESC"],
   EUCLIDEAN: ["L2DISTANCE", "ASC"],
 };
-
-const VECTOR_COLUMN_SQL_TYPES = ["REAL_VECTOR", "HALF_VECTOR"];
 
 const INTERMEDIATE_TABLE_NAME = "intermediate_result";
 
@@ -271,175 +274,20 @@ export class HanaDB extends VectorStore {
   }
 
   /**
-   * Converts a standard 64-bit float (JS number) to a 16-bit half-precision float.
-   * This is a necessary utility since Buffer doesn't have a native `writeHalfLE` method.
-   *
-   * This implementation is a common and well-established algorithm for the conversion.
-   * @param value The number to convert.
-   * @returns A 16-bit integer representing the half-precision float.
-   */
-  private floatToHalf(value: number): number {
-    // Create a buffer and data view to work with the binary representation of the float
-    const floatView = new Float32Array(1);
-    const int32View = new Int32Array(floatView.buffer);
-
-    floatView[0] = value;
-    const f32int = int32View[0];
-
-    // Extract sign, exponent, and mantissa
-    const sign = (f32int >> 16) & 0x8000;
-    let exponent = ((f32int >> 23) & 0xff) - 127;
-    let mantissa = f32int & 0x007fffff;
-
-    if (exponent === 128) {
-      // Infinity or NaN
-      exponent = 15;
-      mantissa = mantissa !== 0 ? 1 : 0;
-    } else if (exponent > 15) {
-      // Overflow
-      exponent = 15;
-      mantissa = 0;
-    } else if (exponent < -14) {
-      // Underflow
-      exponent = 0;
-      mantissa = 0;
-    } else {
-      exponent += 15;
-      mantissa >>= 13;
-    }
-
-    return sign | (exponent << 10) | mantissa;
-  }
-
-  /**
-   * Converts a 16-bit half-precision float to a 32-bit float (represented as a JS number).
-   * @param half The 16-bit integer representing the half-precision float.
-   * @returns The converted number.
-   */
-  private halfToFloat(half: number): number {
-    const sign = (half >> 15) & 0x0001;
-    const exponent = (half >> 10) & 0x001f;
-    const mantissa = half & 0x03ff;
-    if (exponent === 0) {
-      if (mantissa === 0) return sign === 1 ? -0 : 0;
-      return (sign === 1 ? -1 : 1) * 2 ** -14 * (mantissa / 1024);
-    } else if (exponent === 31) {
-      if (mantissa === 0) {
-        return sign === 1 ? -Infinity : Infinity;
-      }
-      return NaN;
-    }
-    return (sign === 1 ? -1 : 1) * 2 ** (exponent - 15) * (1 + mantissa / 1024);
-  }
-
-  /**
-   * Serializes a list of floats into a binary format based on the specified column type.
-   * This function mimics the behavior of Python's `struct.pack`.
-   *
-   * @param values The list of floating-point numbers to serialize.
-   * @param vectorColumnType The target binary format: "HALF_VECTOR" (2-byte floats) or "REAL_VECTOR" (4-byte floats).
-   * @returns A Buffer containing the serialized binary data.
+   * Serializes a list of floats into HANA's fvecs binary format for the configured
+   * vector column type. Delegates to the shared `serializeVector` helper in
+   * `hanautils`, the single source of truth for vector (de)serialization.
    */
   private serializeBinaryFormat(values: number[]): Buffer {
-    if (this.vectorColumnType === "HALF_VECTOR") {
-      // 2-byte half-precision float serialization
-      // Total size = 4 bytes for length (UInt32) + 2 bytes for each float
-      const bufferSize = 4 + values.length * 2;
-      const buffer = Buffer.alloc(bufferSize);
-
-      // Write the number of values as a 4-byte little-endian unsigned integer
-      buffer.writeUInt32LE(values.length, 0);
-
-      // Write each value as a 2-byte little-endian half-precision float
-      let offset = 4;
-      for (const value of values) {
-        const halfFloat = this.floatToHalf(value);
-        buffer.writeUInt16LE(halfFloat, offset);
-        offset += 2;
-      }
-      return buffer;
-    } else if (this.vectorColumnType === "REAL_VECTOR") {
-      // 4-byte float serialization (standard FVECS format)
-      // Total size = 4 bytes for length (UInt32) + 4 bytes for each float
-      const bufferSize = 4 + values.length * 4;
-      const buffer = Buffer.alloc(bufferSize);
-
-      // Write the number of values as a 4-byte little-endian unsigned integer
-      buffer.writeUInt32LE(values.length, 0);
-
-      // Write each value as a 4-byte little-endian float
-      let offset = 4;
-      for (const value of values) {
-        buffer.writeFloatLE(value, offset);
-        offset += 4;
-      }
-      return buffer;
-    } else {
-      // This check is good practice, even with TypeScript types.
-      throw new Error(
-        `Unsupported vector column type: ${this.vectorColumnType}`
-      );
-    }
+    return serializeVector(values, this.vectorColumnType);
   }
 
   /**
-   * Deserializes a binary Buffer back into a list of floats.
-   * This is the inverse of `serializeBinaryFormat`.
-   *
-   * @param buffer The Buffer containing the binary data.
-   * @param vectorColumnType The binary format used for serialization.
-   * @returns An array of floating-point numbers.
+   * Deserializes a binary Buffer back into a list of floats (inverse of
+   * `serializeBinaryFormat`). Delegates to the shared `deserializeVector` helper.
    */
   private deserializeBinaryFormat(buffer: Buffer): number[] {
-    // Guard against buffers that are too small to even contain a length value.
-    if (buffer.length < 4) {
-      throw new Error("Invalid buffer: too short to contain vector length.");
-    }
-
-    // Read the number of values from the first 4 bytes (Little Endian).
-    const numValues = buffer.readUInt32LE(0);
-    const values: number[] = [];
-
-    if (this.vectorColumnType === "HALF_VECTOR") {
-      const elementSize = 2; // 2 bytes for half-precision
-      const expectedSize = 4 + numValues * elementSize;
-
-      // Validate that the buffer is the correct size for the data it claims to hold.
-      if (buffer.length < expectedSize) {
-        throw new Error(
-          `Invalid buffer: expected ${expectedSize} bytes for ${numValues} half-floats, but got ${buffer.length} bytes.`
-        );
-      }
-
-      for (let i = 0; i < numValues; i += 1) {
-        const offset = 4 + i * elementSize;
-        // Read the 2-byte integer and convert it back to a float.
-        const halfValue = buffer.readUInt16LE(offset);
-        values.push(this.halfToFloat(halfValue));
-      }
-    } else if (this.vectorColumnType === "REAL_VECTOR") {
-      const elementSize = 4; // 4 bytes for single-precision
-      const expectedSize = 4 + numValues * elementSize;
-
-      // Validate that the buffer is the correct size.
-      if (buffer.length < expectedSize) {
-        throw new Error(
-          `Invalid buffer: expected ${expectedSize} bytes for ${numValues} floats, but got ${buffer.length} bytes.`
-        );
-      }
-
-      for (let i = 0; i < numValues; i += 1) {
-        const offset = 4 + i * elementSize;
-        // Read the 4-byte float directly.
-        values.push(buffer.readFloatLE(offset));
-      }
-    } else {
-      throw new Error(
-        `Unsupported vector column type: ${this.vectorColumnType}`
-      );
-    }
-
-    return values;
+    return deserializeVector(buffer, this.vectorColumnType);
   }
 
   /**
@@ -580,10 +428,7 @@ export class HanaDB extends VectorStore {
   }
 
   public async initialize() {
-    await HanaDB.validateDatatypeSupport(
-      this.connection,
-      this.vectorColumnType
-    );
+    await validateDatatypeSupport(this.connection, this.vectorColumnType);
 
     if (this.useInternalEmbeddings)
       await this.validateInternalEmbeddingFunction();
@@ -751,76 +596,8 @@ export class HanaDB extends VectorStore {
     return columns.map((column) => this.sanitizeName(column));
   }
 
-  private static getMinSupportedVersion(datatype: string): string {
-    if (datatype === "HALF_VECTOR") {
-      return "2025.15 (QRC 2/2025)";
-    } else if (datatype === "REAL_VECTOR") {
-      return "2024.2 (QRC 1/2024)";
-    } else {
-      throw new Error(`Unknown datatype: ${datatype}`);
-    }
-  }
-
-  private static async getInstanceVersion(
-    connection: Connection
-  ): Promise<string | undefined> {
-    const client = connection;
-    try {
-      const rows = await executeQuery(
-        client,
-        "SELECT CLOUD_VERSION FROM SYS.M_DATABASE;"
-      );
-      return rows[0]?.CLOUD_VERSION;
-    } catch {
-      return undefined;
-    }
-  }
-
-  private static async getAvailableDatatypes(
-    connection: Connection
-  ): Promise<Set<string>> {
-    const client = connection;
-    const rows = await executeQuery(
-      client,
-      "SELECT TYPE_NAME FROM SYS.DATA_TYPES"
-    );
-    if (rows.length === 0) {
-      throw new Error("No data types returned by the database.");
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const availableTypes = rows.map((row: any) => row.TYPE_NAME);
-    return new Set<string>(availableTypes);
-  }
-
-  private static async validateDatatypeSupport(
-    connection: Connection,
-    datatype: string
-  ): Promise<boolean> {
-    const availableDatatypes = await HanaDB.getAvailableDatatypes(connection);
-    if (availableDatatypes.has(datatype)) {
-      return true;
-    }
-    // Get instance version, but don't include it in error if retrieval fails
-    let errorMessage = `${datatype} is not available on this HANA instance.\n`;
-
-    //  Only include instance version line if it was successfully retrieved
-    const instanceVersion = await HanaDB.getInstanceVersion(connection);
-    if (instanceVersion) {
-      errorMessage += `Instance version: ${instanceVersion}\n`;
-    }
-    const minInstanceVersion = HanaDB.getMinSupportedVersion(datatype);
-    errorMessage += `Minimum required instance version: ${minInstanceVersion}`;
-
-    throw new Error(errorMessage);
-  }
-
   static sanitizeVectorColumnType(vectorColumnType: string): string {
-    const vectorColumnTypeUpper = vectorColumnType.toUpperCase();
-    if (!VECTOR_COLUMN_SQL_TYPES.includes(vectorColumnTypeUpper)) {
-      throw new Error(`Invalid vector column type: ${vectorColumnType}.
-        Must be one of ${VECTOR_COLUMN_SQL_TYPES.join(", ")}`);
-    }
-    return vectorColumnTypeUpper;
+    return validateVectorColumnType(vectorColumnType);
   }
 
   /**
@@ -828,16 +605,14 @@ export class HanaDB extends VectorStore {
    *
    * Applies the appropriate vector conversion function
    * (TO_REAL_VECTOR or TO_HALF_VECTOR) to the provided
-   * expression based on the configured vectorColumnType.
+   * expression based on the configured vectorColumnType. Delegates to the shared
+   * `toTargetVectorType` helper in `hanautils`.
    *
    * @param expr - A vector expression.
    * @returns The expression wrapped with the appropriate conversion function.
    */
   private convertToTargetVectorType(expr: string): string {
-    if (VECTOR_COLUMN_SQL_TYPES.includes(this.vectorColumnType)) {
-      return `TO_${this.vectorColumnType}(${expr})`;
-    }
-    throw new Error(`Unsupported vector type: ${this.vectorColumnType}`);
+    return toTargetVectorType(expr, this.vectorColumnType);
   }
 
   /**

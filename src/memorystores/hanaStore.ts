@@ -14,6 +14,7 @@ import {
   getTextAtPath,
 } from "@langchain/langgraph-checkpoint";
 import {
+  DEFAULT_VECTOR_COLUMN_TYPE,
   Mutex,
   commit,
   executeBatchStatement,
@@ -23,7 +24,10 @@ import {
   prepareQuery,
   rollback,
   sanitizeName,
+  serializeVector,
   tableExists,
+  validateDatatypeSupport,
+  validateVectorColumnType,
 } from "../hanautils.js";
 
 export const DEFAULT_MIGRATIONS_TABLE = "LANGGRAPH_STORE_MIGRATIONS";
@@ -87,6 +91,12 @@ export interface HanaStoreArgs {
   storeTable?: string;
   /** Name of the per-field embeddings table. */
   vectorsTable?: string;
+  /**
+   * Stored embedding column type: `"REAL_VECTOR"` (default, 4-byte) or
+   * `"HALF_VECTOR"` (2-byte half precision). `HALF_VECTOR` requires a HANA Cloud
+   * instance that offers the type (checked at `setup()`).
+   */
+  vectorColumnType?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,6 +153,8 @@ export class HanaStore extends BaseStore {
 
   protected vectorsTable: string;
 
+  protected vectorColumnType: string;
+
   private lock = new Mutex();
 
   private setupPromise?: Promise<void>;
@@ -166,6 +178,9 @@ export class HanaStore extends BaseStore {
     this.storeTable = sanitizeName(args.storeTable ?? DEFAULT_STORE_TABLE);
     this.vectorsTable = sanitizeName(
       args.vectorsTable ?? DEFAULT_VECTORS_TABLE
+    );
+    this.vectorColumnType = validateVectorColumnType(
+      args.vectorColumnType ?? DEFAULT_VECTOR_COLUMN_TYPE
     );
     if (!this.migrationsTable || !this.storeTable || !this.vectorsTable) {
       throw new Error("Table names must not be empty after sanitization.");
@@ -216,11 +231,6 @@ export class HanaStore extends BaseStore {
       '"UPDATED_AT" TIMESTAMP DEFAULT CURRENT_UTCTIMESTAMP NOT NULL, ' +
       'PRIMARY KEY ("PREFIX", "KEY", "FIELD_NAME"))'
     );
-  }
-
-  /** The stored embedding column type. Overridden in later PRs; `REAL_VECTOR` here. */
-  protected get vectorColumnType(): string {
-    return "REAL_VECTOR";
   }
 
   private get insertVersionSql(): string {
@@ -436,19 +446,6 @@ export class HanaStore extends BaseStore {
       updatedAt: new Date(row.UPDATED_AT),
       score: score !== undefined && score !== null ? Number(score) : undefined,
     };
-  }
-
-  /** Serialize a float vector to HANA's fvecs binary for the configured type. */
-  protected serializeVector(values: number[]): Buffer {
-    // REAL_VECTOR: 4-byte little-endian floats, prefixed by a uint32 element count.
-    const buffer = Buffer.alloc(4 + values.length * 4);
-    buffer.writeUInt32LE(values.length, 0);
-    let offset = 4;
-    for (const value of values) {
-      buffer.writeFloatLE(value, offset);
-      offset += 4;
-    }
-    return buffer;
   }
 
   /** Render a vector as the `'[v1,v2,...]'` literal for `TO_REAL_VECTOR`. */
@@ -692,9 +689,12 @@ export class HanaStore extends BaseStore {
     }
   }
 
-  /** Hook for datatype/model validation during setup; a no-op here. */
+  /**
+   * Validate that the configured vector column type is available on the instance.
+   * Extended in a later PR with the internal-embedding model probe.
+   */
   protected async validateVectorSetup(): Promise<void> {
-    // Extended in later PRs (HALF_VECTOR datatype support, internal-embedding probe).
+    await validateDatatypeSupport(this.connection, this.vectorColumnType);
   }
 
   /** Start the store (runs `setup()` when `ensureTables` is enabled). */
@@ -853,7 +853,7 @@ export class HanaStore extends BaseStore {
       await this.indexConfig.embeddings.embedDocuments(indexTexts);
     const params: HanaParameterType[][] = indexRows.map((row, i) => [
       ...row,
-      this.serializeVector(vectors[i]),
+      serializeVector(vectors[i], this.vectorColumnType),
     ]);
     const stmt = await prepareQuery(this.connection, this.insertVectorSql);
     await executeBatchStatement(stmt, params);

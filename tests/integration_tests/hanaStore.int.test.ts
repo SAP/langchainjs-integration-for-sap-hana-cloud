@@ -201,4 +201,35 @@ describe("HanaStore", () => {
     await store.delete(ns, "cat");
     await store.delete(ns, "car");
   });
+
+  test("semantic search works with a HALF_VECTOR column", async () => {
+    const store = new HanaStore({
+      connection: client,
+      schemaName,
+      index: {
+        dims: 16,
+        embeddings: new ConsistentFakeEmbeddings(16),
+        fields: ["text"],
+      },
+      vectorColumnType: "HALF_VECTOR",
+      vectorsTable: "LANGGRAPH_STORE_VECTORS_HALF",
+    });
+    try {
+      await store.setup();
+    } catch (e) {
+      // Skip when the instance does not offer HALF_VECTOR.
+      if (String(e).includes("HALF_VECTOR is not available")) return;
+      throw e;
+    }
+    const ns = ["semhalf"];
+    await store.put(ns, "cat", { text: "cats are great pets" });
+    await store.put(ns, "car", { text: "cars drive on roads" });
+    const results = await store.search(ns, {
+      query: "cats are great pets",
+      limit: 2,
+    });
+    expect(results[0].key).toBe("cat");
+    await store.delete(ns, "cat");
+    await store.delete(ns, "car");
+  });
 });
