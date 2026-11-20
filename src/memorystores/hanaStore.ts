@@ -17,6 +17,7 @@ import {
   DEFAULT_VECTOR_COLUMN_TYPE,
   Mutex,
   commit,
+  convertVectorEmbeddingToColumnType,
   executeBatchStatement,
   executeQuery,
   executeStatement,
@@ -27,8 +28,11 @@ import {
   serializeVector,
   tableExists,
   validateDatatypeSupport,
+  validateIdentifier,
   validateVectorColumnType,
+  vectorEmbeddingSqlAndParams,
 } from "../hanautils.js";
+import { HanaInternalEmbeddings } from "../embeddings/hanaInternalEmbeddings.js";
 
 export const DEFAULT_MIGRATIONS_TABLE = "LANGGRAPH_STORE_MIGRATIONS";
 export const DEFAULT_STORE_TABLE = "LANGGRAPH_STORE";
@@ -143,6 +147,17 @@ export class HanaStore extends BaseStore {
 
   protected indexFields: string[] = [];
 
+  // Internal-embedding config, populated when `index.embeddings` is a
+  // `HanaInternalEmbeddings` so vectors are computed in-database via
+  // `VECTOR_EMBEDDING` instead of a Python/JS-side embedding call.
+  protected useInternalEmbeddings = false;
+
+  protected internalEmbeddingModelId = "";
+
+  protected internalEmbeddingRemoteSourceSchema = "";
+
+  protected internalEmbeddingRemoteSource = "";
+
   private schemaName: string;
 
   private ensureTables: boolean;
@@ -170,6 +185,21 @@ export class HanaStore extends BaseStore {
     if (args.index !== undefined) {
       this.embeddingDims = Math.trunc(args.index.dims);
       this.indexFields = [...(args.index.fields ?? ["$"])];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((args.index.embeddings as any)?.isHanaInternalEmbeddings === true) {
+        const internal = args.index.embeddings as HanaInternalEmbeddings;
+        this.useInternalEmbeddings = true;
+        this.internalEmbeddingModelId = internal.getModelId();
+        this.internalEmbeddingRemoteSourceSchema =
+          internal.getRemoteSourceSchema();
+        this.internalEmbeddingRemoteSource = internal.getRemoteSource();
+        if (this.internalEmbeddingRemoteSourceSchema) {
+          validateIdentifier(this.internalEmbeddingRemoteSourceSchema);
+        }
+        if (this.internalEmbeddingRemoteSource) {
+          validateIdentifier(this.internalEmbeddingRemoteSource);
+        }
+      }
     }
     this.schemaName = args.schemaName ? sanitizeName(args.schemaName) : "";
     this.migrationsTable = sanitizeName(
@@ -305,9 +335,21 @@ export class HanaStore extends BaseStore {
   }
 
   protected get insertVectorSql(): string {
+    const embedding = this.useInternalEmbeddings
+      ? convertVectorEmbeddingToColumnType(
+          vectorEmbeddingSqlAndParams(
+            "",
+            "DOCUMENT",
+            this.internalEmbeddingModelId,
+            this.internalEmbeddingRemoteSourceSchema,
+            this.internalEmbeddingRemoteSource
+          )[0],
+          this.vectorColumnType
+        )
+      : "?";
     return (
       `INSERT INTO ${this.vectorsRef} ` +
-      '("PREFIX", "KEY", "FIELD_NAME", "EMBEDDING") VALUES (?, ?, ?, ?)'
+      `("PREFIX", "KEY", "FIELD_NAME", "EMBEDDING") VALUES (?, ?, ?, ${embedding})`
     );
   }
 
@@ -378,8 +420,27 @@ export class HanaStore extends BaseStore {
     return [sql, params];
   }
 
-  /** SQL expression (with placeholders) producing the query embedding vector. */
+  /**
+   * SQL expression (with placeholders) producing the query embedding vector.
+   *
+   * For external embeddings the query vector is bound as one string literal wrapped
+   * in `TO_<type>`. For internal embeddings the vector is computed in-database with
+   * `VECTOR_EMBEDDING(?, 'QUERY', ?[, ?, ?])` (wrapped in `TO_<type>` when the column
+   * is not `REAL_VECTOR`), and its params lead instead.
+   */
   protected queryVectorExpr(): string {
+    if (this.useInternalEmbeddings) {
+      return convertVectorEmbeddingToColumnType(
+        vectorEmbeddingSqlAndParams(
+          "",
+          "QUERY",
+          this.internalEmbeddingModelId,
+          this.internalEmbeddingRemoteSourceSchema,
+          this.internalEmbeddingRemoteSource
+        )[0],
+        this.vectorColumnType
+      );
+    }
     return `TO_${this.vectorColumnType}(?)`;
   }
 
@@ -690,11 +751,24 @@ export class HanaStore extends BaseStore {
   }
 
   /**
-   * Validate that the configured vector column type is available on the instance.
-   * Extended in a later PR with the internal-embedding model probe.
+   * Validate that the configured vector column type is available on the instance,
+   * and — for internal embeddings — that the in-database model resolves (a probe
+   * `SELECT COUNT(TO_NVARCHAR(VECTOR_EMBEDDING(...)))`).
    */
   protected async validateVectorSetup(): Promise<void> {
     await validateDatatypeSupport(this.connection, this.vectorColumnType);
+    if (this.useInternalEmbeddings) {
+      const [embedSql, embedParams] = vectorEmbeddingSqlAndParams(
+        "test",
+        "QUERY",
+        this.internalEmbeddingModelId,
+        this.internalEmbeddingRemoteSourceSchema,
+        this.internalEmbeddingRemoteSource
+      );
+      const probe = `SELECT COUNT(TO_NVARCHAR(${embedSql})) AS "CNT" FROM sys.DUMMY`;
+      const stmt = await prepareQuery(this.connection, probe);
+      await executeStatement(stmt, embedParams);
+    }
   }
 
   /** Start the store (runs `setup()` when `ensureTables` is enabled). */
@@ -849,14 +923,38 @@ export class HanaStore extends BaseStore {
     if (this.indexConfig === undefined) {
       return;
     }
-    const vectors =
-      await this.indexConfig.embeddings.embedDocuments(indexTexts);
-    const params: HanaParameterType[][] = indexRows.map((row, i) => [
-      ...row,
-      serializeVector(vectors[i], this.vectorColumnType),
-    ]);
+    let params: HanaParameterType[][];
+    if (this.useInternalEmbeddings) {
+      // HANA computes the embedding from the text at insert time; the
+      // VECTOR_EMBEDDING params trail the key columns (no JS-side embedding call).
+      params = indexRows.map((row, i) => [
+        ...row,
+        ...this.vectorEmbeddingParams(indexTexts[i], "DOCUMENT"),
+      ]);
+    } else {
+      const vectors =
+        await this.indexConfig.embeddings.embedDocuments(indexTexts);
+      params = indexRows.map((row, i) => [
+        ...row,
+        serializeVector(vectors[i], this.vectorColumnType),
+      ]);
+    }
     const stmt = await prepareQuery(this.connection, this.insertVectorSql);
     await executeBatchStatement(stmt, params);
+  }
+
+  /** `VECTOR_EMBEDDING` params for the store's internal-embedding model. */
+  protected vectorEmbeddingParams(
+    text: string,
+    kind: "QUERY" | "DOCUMENT"
+  ): string[] {
+    return vectorEmbeddingSqlAndParams(
+      text,
+      kind,
+      this.internalEmbeddingModelId,
+      this.internalEmbeddingRemoteSourceSchema,
+      this.internalEmbeddingRemoteSource
+    )[1];
   }
 
   private async batchSearch(
@@ -906,6 +1004,10 @@ export class HanaStore extends BaseStore {
   protected async queryEmbeddingParams(
     query: string
   ): Promise<HanaParameterType[]> {
+    if (this.useInternalEmbeddings) {
+      // HANA embeds the query in-database; pass the VECTOR_EMBEDDING params.
+      return this.vectorEmbeddingParams(query, "QUERY");
+    }
     const queryVec = await this.indexConfig!.embeddings.embedQuery(query);
     return [HanaStore.vectorToStr(queryVec)];
   }
