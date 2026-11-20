@@ -1,16 +1,14 @@
 import { Connection, HanaParameterType } from "@sap/hana-client";
-import { executeStatement, prepareQuery } from "../hanautils.js";
+import {
+  executeStatement,
+  prepareQuery,
+  validateIdentifier,
+} from "../hanautils.js";
 
-const _VALID_IDENTIFIER_RE = /^[_a-zA-Z][_a-zA-Z0-9]*$/;
-
-/**Raise an error if name is not a safe SQL/JSON identifier.*/
-export function validateIdentifier(name: string): void {
-  if (!_VALID_IDENTIFIER_RE.test(name)) {
-    throw new Error(
-      `Invalid identifier '${name}': only letters, digits, and underscores are allowed, and it must not start with a digit.`
-    );
-  }
-}
+// Re-exported from the shared hanautils module, which is the single source of
+// truth for identifier validation across the vector store, checkpointers and
+// memory stores.
+export { validateIdentifier };
 
 /**Validate that all metadata keys are valid identifiers.*/
 export function sanitizeMetadataKeys(metadataKeys: string[]): void {

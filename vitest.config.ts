@@ -26,6 +26,9 @@ export default defineConfig((env) => {
         ...common.test,
         globals: false,
         testTimeout: 100_000,
+        // The checkpoint conformance suite seeds many rows in a hook; HANA's DDL
+        // latency can exceed the 10s default.
+        hookTimeout: 100_000,
         exclude: configDefaults.exclude,
         include: ["**/*.int.test.ts"],
         name: "int",
